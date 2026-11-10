@@ -1,0 +1,97 @@
+# ==============================================================================
+# Employee360 Backend Configuration Example
+# ==============================================================================
+
+server:
+  port: "8080"
+  host: "0.0.0.0"
+  read_timeout: 10s
+  write_timeout: 10s
+  shutdown_timeout: 10s
+
+database:
+  # Optional single connection URL (env: DATABASE_URL). When set, it overrides
+  # the separate host/port/user/password/dbname/sslmode fields below. A URL
+  # without ?sslmode= uses "prefer" (the libpq default), not the sslmode below.
+  # url: "postgres://user:pass@localhost:5432/employee360?sslmode=disable"
+  host: "localhost"
+  port: "5432"
+  user: "postgres"
+  password: "postgres"
+  dbname: "employee360"
+  sslmode: "disable"
+  max_open_conns: 25
+  max_idle_conns: 5
+  conn_max_lifetime: 15m
+  conn_timeout: 5s
+
+jwt:
+  secret: "change-me-in-production-secret-key-360"
+  access_expiry: 15m
+  refresh_expiry: 168h
+
+app:
+  environment: "development"  # required: development|test relax JWT secret checks; unset is treated as production
+  log_level: "debug"
+  # Public base URL of the web client; used to build links in emails.
+  frontend_url: "http://localhost:5173"
+  # Optional per-app base URLs; invitation emails link to the invited role's app
+  # (admin/super_admin -> admin_url, employee -> employee_url). Each falls back
+  # to frontend_url when unset.
+  # admin_url: "http://localhost:5173"
+  # employee_url: "http://localhost:5174"
+
+# Global per-client-IP token-bucket rate limiting (in-memory, per instance).
+# Health probes (/health, /healthz, /api/v1/health) are exempt.
+# Env: RATE_LIMIT_ENABLED, RATE_LIMIT_REQUESTS_PER_SECOND, RATE_LIMIT_BURST,
+#      RATE_LIMIT_CLEANUP_INTERVAL, RATE_LIMIT_IDLE_TTL
+rate_limit:
+  enabled: true
+  requests_per_second: 10
+  burst: 20
+  cleanup_interval: 1m
+  idle_ttl: 10m
+
+auth_rate_limit:
+  enabled: true
+  per_account_max: 5   # attempts per window per (endpoint, email)
+  per_ip_max: 30       # attempts per window per client IP across auth endpoints
+  window: 1m           # counting window and maximum lockout length
+
+cors:
+  allowed_origins:
+    - "*"
+
+smtp:
+  host: "smtp.resend.com"
+  port: 465
+  username: "resend"
+  password: "<RESEND_API_KEY>"
+  from: "Employee360 <no-reply@example.com>"
+  use_tls: true
+
+# Optional Redis cache/counter store. Disabled by default; when enabled the API
+# fails fast at startup if Redis is unreachable. `url` (redis:// or rediss://)
+# overrides host/port/password/db/tls. Prefer the REDIS_PASSWORD env var over
+# committing a password. Env: REDIS_ENABLED, REDIS_URL, REDIS_HOST, REDIS_PORT,
+# REDIS_PASSWORD, REDIS_DB, REDIS_TLS, REDIS_DIAL_TIMEOUT, REDIS_READ_TIMEOUT,
+# REDIS_WRITE_TIMEOUT, REDIS_POOL_SIZE
+redis:
+  enabled: false
+  url: ""
+  host: "localhost"
+  port: 6379
+  password: ""
+  db: 0
+  tls: false
+  dial_timeout: 5s
+  read_timeout: 3s
+  write_timeout: 3s
+  pool_size: 10
+
+# Read only by cmd/bootstrap. Prefer the env vars BOOTSTRAP_SUPER_ADMIN_EMAIL /
+# BOOTSTRAP_SUPER_ADMIN_PASSWORD over committing credentials to a file.
+bootstrap:
+  system_tenant_name: "System"
+  super_admin_email: ""
+  super_admin_password: ""

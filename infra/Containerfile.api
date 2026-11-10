@@ -1,0 +1,29 @@
+# syntax=docker/dockerfile:1.7
+# Build context: repo root. Produces one image holding the api, worker, migrate
+# and bootstrap binaries plus the SQL migrations; the quadlets pick the binary
+# via Entrypoint=.
+FROM docker.io/library/golang:1.26-bookworm AS builder
+
+WORKDIR /build
+
+COPY backend/go.mod backend/go.sum ./
+RUN go mod download
+
+COPY backend/ ./
+
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/api       ./cmd/api
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/worker    ./cmd/worker
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/migrate   ./cmd/migrate
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/bootstrap ./cmd/bootstrap
+
+FROM gcr.io/distroless/static-debian12:nonroot AS runtime
+
+COPY --from=builder /out/api       /usr/local/bin/api
+COPY --from=builder /out/worker    /usr/local/bin/worker
+COPY --from=builder /out/migrate   /usr/local/bin/migrate
+COPY --from=builder /out/bootstrap /usr/local/bin/bootstrap
+COPY --from=builder /build/migrations /migrations
+
+EXPOSE 8080
+
+ENTRYPOINT ["/usr/local/bin/api"]

@@ -1,0 +1,96 @@
+/* FullCalendar theme overrides: flat solid design-system tokens, no gradients or shadows. */
+.holiday-calendar .fc {
+  --fc-border-color: var(--color-slate-300, #cbd5e1); /* slate-300 */
+  --fc-page-bg-color: var(--color-white, #ffffff);
+  --fc-neutral-bg-color: var(--color-slate-100, #f1f5f9); /* slate-100 */
+  --fc-today-bg-color: var(--color-slate-200, #e2e8f0); /* slate-200 */
+  --fc-event-bg-color: var(--color-slate-100, #f1f5f9);
+  --fc-event-border-color: var(--color-slate-300, #cbd5e1);
+  --fc-event-text-color: var(--color-slate-900, #0f172a);
+  --fc-small-font-size: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--color-slate-900, #0f172a);
+}
+.holiday-calendar .fc .fc-scrollgrid { border-radius: 0; }
+/* height="auto" month grids never need an inner scroller; keep only the page scrollbar. */
+.holiday-calendar .fc .fc-scroller,
+.holiday-calendar .fc .fc-scroller-liquid-absolute { overflow: visible !important; position: static; height: auto !important; }
+.holiday-calendar .fc .fc-col-header-cell { background: var(--color-slate-100, #f1f5f9); }
+.holiday-calendar .fc .fc-col-header-cell-cushion {
+  padding: 8px 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-slate-600, #475569); /* slate-600 */
+  text-decoration: none;
+}
+.holiday-calendar .fc .fc-daygrid-day-number {
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  color: var(--color-slate-900, #0f172a);
+  text-decoration: none;
+}
+.holiday-calendar .fc .fc-day-other .fc-daygrid-day-number { color: var(--color-slate-600, #475569); }
+.holiday-calendar .fc .fc-day-other { background: var(--color-slate-50, #f8fafc); }
+.holiday-calendar .fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  margin: 2px;
+  padding: 0 4px;
+  border-radius: 9999px;
+  background: var(--color-slate-900, #0f172a); /* slate-900 */
+  color: var(--color-white, #ffffff);
+  font-weight: 600;
+}
+.holiday-calendar--clickable .fc .fc-daygrid-day-frame { cursor: pointer; }
+.holiday-calendar--clickable .fc .fc-daygrid-day:hover { background: var(--color-slate-50, #f8fafc); }
+.holiday-calendar--clickable .fc .fc-daygrid-day.fc-day-today:hover { background: var(--color-slate-200, #e2e8f0); }
+.holiday-calendar .fc .fc-daygrid-event {
+  margin: 1px 4px;
+  padding: 2px 4px;
+  border-radius: 2px;
+  border: 1px solid var(--color-slate-300, #cbd5e1);
+  background: var(--color-white, #ffffff);
+}
+.holiday-calendar--selectable .fc .fc-daygrid-event { cursor: pointer; }
+.holiday-calendar--selectable .fc .fc-daygrid-event:hover { background: var(--color-slate-100, #f1f5f9); }
+.holiday-calendar .fc .fc-event:focus-visible {
+  outline: 2px solid var(--color-slate-900, #0f172a);
+  outline-offset: 1px;
+}
+.holiday-calendar .fc .fc-daygrid-more-link { color: var(--color-slate-900, #0f172a); font-size: 0.75rem; font-weight: 500; }
+.holiday-calendar .fc .fc-popover { border: 1px solid var(--color-slate-300, #cbd5e1); border-radius: 2px; box-shadow: none; }
+.holiday-calendar .fc .fc-popover-header { background: var(--color-slate-100, #f1f5f9); }
+.holiday-event { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: 0.75rem; color: var(--color-slate-900, #0f172a); }
+.holiday-event__dot { width: 8px; height: 8px; flex: none; border-radius: 9999px; background: var(--color-slate-600, #475569); }
+.holiday-event__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Per-day text markers, selected and disabled days (shared by pages that render totals instead of holidays). */
+.holiday-calendar .fc .fc-daygrid-event.holiday-day-label-event { pointer-events: none; border: 0; background: transparent; margin: 0 4px; padding: 0; }
+.holiday-day-label { font-size: 0.75rem; font-weight: 600; color: var(--color-slate-900, #0f172a); }
+.holiday-day-label--muted { font-weight: 500; color: var(--color-slate-600, #475569); }
+.holiday-day-label--info { font-weight: 500; color: var(--color-blue-700, #1d4ed8); }
+.holiday-day-label--warning { font-weight: 500; color: var(--color-amber-700, #b45309); }
+.holiday-calendar .fc .fc-daygrid-day.holiday-day--selected { background: var(--color-slate-200, #e2e8f0); outline: 2px solid var(--color-slate-900, #0f172a); outline-offset: -2px; }
+.holiday-calendar .fc .fc-daygrid-day.holiday-day--disabled { background: var(--color-slate-50, #f8fafc); }
+.holiday-calendar .fc .fc-daygrid-day.holiday-day--disabled .fc-daygrid-day-number { color: var(--color-slate-600, #475569); opacity: 0.6; }
+.holiday-calendar--clickable .fc .fc-daygrid-day.holiday-day--disabled .fc-daygrid-day-frame { cursor: not-allowed; }
+.holiday-calendar--clickable .fc .fc-daygrid-day.holiday-day--disabled:hover { background: var(--color-slate-50, #f8fafc); }
+/*
+ * Dark mode: every rule above reads the shared --color-* variables, which html.dark (theme.css)
+ * remaps, so only the today chip needs its own treatment (solid black fill, like other chips).
+ */
+html.dark .holiday-calendar .fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
+  background: #000000;
+  color: #ffffff;
+  outline: 1px solid var(--color-slate-300);
+  outline-offset: -1px;
+}
+/* Narrow screens: show only dots so cells stay readable. */
+@media (max-width: 639px) {
+  .holiday-calendar .fc .fc-daygrid-day-number { padding: 2px 4px; }
+  .holiday-calendar .fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number { margin: 1px; }
+  .holiday-calendar .fc .fc-daygrid-event { margin: 1px 2px; padding: 1px 2px; }
+  .holiday-event__name { display: none; }
+}

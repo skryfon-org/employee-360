@@ -1,0 +1,134 @@
+name: Frontend CI
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  # ─────────────────────────────────────────────────────────
+  # lint — ESLint across all workspace packages.
+  # ─────────────────────────────────────────────────────────
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: eslint
+        run: pnpm -r lint
+
+  # ─────────────────────────────────────────────────────────
+  # typecheck — TypeScript project-reference typechecking.
+  # ─────────────────────────────────────────────────────────
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: typecheck
+        run: pnpm -r typecheck
+
+  # ─────────────────────────────────────────────────────────
+  # test — Vitest unit/component tests across all workspace packages.
+  # ─────────────────────────────────────────────────────────
+  test:
+    name: Client Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: test
+        run: pnpm -r test
+
+  # ─────────────────────────────────────────────────────────
+  # build — production bundles for both apps + packages.
+  # ─────────────────────────────────────────────────────────
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: build
+        run: pnpm -r build
+
+  # ─────────────────────────────────────────────────────────
+  # smoke-test — boot both apps' real dev servers and confirm they render.
+  # ─────────────────────────────────────────────────────────
+  smoke-test:
+    name: Smoke Test (dev servers)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: smoke-test admin and employee dev servers
+        env:
+          ADMIN_PORT: "5183"
+          EMPLOYEE_PORT: "5184"
+        run: |
+          pnpm --filter admin dev > /tmp/admin-dev.log 2>&1 &
+          admin_pid=$!
+          pnpm --filter employee dev > /tmp/employee-dev.log 2>&1 &
+          employee_pid=$!
+          for i in $(seq 1 15); do
+            if curl -sf http://localhost:5183/ -o /tmp/admin.html && curl -sf http://localhost:5184/ -o /tmp/employee.html; then
+              break
+            fi
+            sleep 1
+          done
+          grep -q "Employee360 Admin" /tmp/admin.html
+          grep -q "Employee360 Employee Portal" /tmp/employee.html
+          kill "$admin_pid" "$employee_pid" 2>/dev/null || true

@@ -1,0 +1,42 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/check-migration.sh",
+            "statusMessage": "Checking migration file safety…"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/tenant-scope-reminder.sh",
+            "statusMessage": "Checking tenant scoping conventions…"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/backend-check.sh",
+            "asyncRewake": true,
+            "timeout": 60,
+            "statusMessage": "Running Go checks (gofmt + go vet)…"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/frontend-check.sh",
+            "asyncRewake": true,
+            "timeout": 180,
+            "statusMessage": "Running frontend checks (format + typecheck + lint)…"
+          }
+        ]
+      }
+    ]
+  }
+}

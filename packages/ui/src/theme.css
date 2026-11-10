@@ -1,0 +1,164 @@
+/*
+ * Shared Employee360 theme tokens. Flat solid colors only (see design-system skill).
+ * Imported by both clients after `@import "tailwindcss"`. Aliases map onto the slate
+ * palette so a palette / per-tenant change is a one-file edit.
+ */
+@theme inline {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  --color-canvas: var(--color-slate-50);
+  --color-surface: var(--color-white);
+  --color-surface-subtle: var(--color-slate-100);
+  --color-surface-selected: var(--color-slate-200);
+  --color-line: var(--color-slate-200);
+  --color-line-strong: var(--color-slate-300);
+  --color-ink: var(--color-slate-900);
+  --color-ink-muted: var(--color-slate-600);
+  --color-accent: var(--color-slate-900);
+  --color-accent-hover: var(--color-slate-800);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background-color: var(--color-slate-50);
+    color: var(--color-slate-900);
+    font-family: var(--font-sans);
+  }
+}
+
+/*
+ * Dark theme (class strategy: <html class="dark">, set by the shared theme store).
+ * Rather than touching every light-only utility, the palette variables the app uses are
+ * re-pointed so each scale step maps to its mirror (50<->950, 100<->900, ...). `white`
+ * becomes the raised surface and slate-50 the canvas, so `bg-white`, `text-slate-900`,
+ * `border-slate-200`, status fills/borders/text etc. all flip together. Flat solid hex
+ * values only, no gradients. Text/background pairs checked for WCAG AA (>= 4.5:1).
+ */
+html.dark {
+  color-scheme: dark;
+  --color-white: #0f172a;
+  --color-slate-50: #020617;
+  --color-slate-100: #1e293b;
+  --color-slate-200: #334155;
+  --color-slate-300: #475569;
+  --color-slate-400: #64748b;
+  --color-slate-500: #94a3b8;
+  --color-slate-600: #cbd5e1;
+  --color-slate-700: #e2e8f0;
+  --color-slate-800: #f1f5f9;
+  --color-slate-900: #f8fafc;
+  --color-slate-950: #ffffff;
+
+  --color-red-50: #450a0a;
+  --color-red-100: #7f1d1d;
+  --color-red-200: #991b1b;
+  --color-red-300: #b91c1c;
+  --color-red-400: #dc2626;
+  --color-red-500: #ef4444;
+  --color-red-600: #f87171;
+  --color-red-700: #fca5a5;
+  --color-red-800: #fecaca;
+  --color-red-900: #fee2e2;
+
+  --color-green-50: #052e16;
+  --color-green-100: #14532d;
+  --color-green-200: #166534;
+  --color-green-300: #15803d;
+  --color-green-400: #16a34a;
+  --color-green-500: #22c55e;
+  --color-green-600: #4ade80;
+  --color-green-700: #86efac;
+  --color-green-800: #bbf7d0;
+  --color-green-900: #dcfce7;
+
+  --color-amber-50: #451a03;
+  --color-amber-100: #78350f;
+  --color-amber-200: #92400e;
+  --color-amber-300: #b45309;
+  --color-amber-400: #d97706;
+  --color-amber-500: #f59e0b;
+  --color-amber-600: #fbbf24;
+  --color-amber-700: #fcd34d;
+  --color-amber-800: #fde68a;
+  --color-amber-900: #fef3c7;
+
+  --color-blue-50: #172554;
+  --color-blue-100: #1e3a8a;
+  --color-blue-200: #1e40af;
+  --color-blue-300: #1d4ed8;
+  --color-blue-400: #2563eb;
+  --color-blue-500: #3b82f6;
+  --color-blue-600: #60a5fa;
+  --color-blue-700: #93c5fd;
+  --color-blue-800: #bfdbfe;
+  --color-blue-900: #dbeafe;
+}
+
+/*
+ * Tailwind v4 registers --tw-ring-offset-color with @property (inherits: false, initial #fff),
+ * so a value set on <html> never reaches elements. Set it on every element/pseudo instead so
+ * focus rings' offset gap matches the raised dark surface rather than a white halo. Kept in the
+ * base layer so any explicit ring-offset-<color> utility (utilities layer) still wins.
+ */
+@layer base {
+  html.dark *,
+  html.dark ::before,
+  html.dark ::after,
+  html.dark ::backdrop {
+    --tw-ring-offset-color: var(--color-white);
+  }
+}
+
+/*
+ * Dark mode, solid fills. `white` is remapped to the dark surface and slate-900 to near-white,
+ * so utilities written for light mode need explicit handling:
+ *  - `text-white` (always used on a solid dark/red fill) must stay light. Enabled elements only:
+ *    disabled / aria-disabled ones keep the remapped colours, where their own disabled:* styles
+ *    (or the inverted light fill) already give contrast.
+ *  - `bg-slate-900` / `bg-accent` fills become a solid black fill with a slate outline so they read
+ *    on the dark surface, but only on interactive controls (buttons, links, switches) and on
+ *    elements that carry white text (stepper, today chip, toggle chips, brand mark). Pure
+ *    indicators (progress bars, dots) have no text and keep the remapped near-white fill.
+ *  - `bg-red-600` (destructive) stays a solid red.
+ * Unlayered, so these beat the utility layer irrespective of specificity.
+ */
+html.dark .text-white:not(:disabled):not([aria-disabled='true']),
+html.dark .\!text-white:not(:disabled):not([aria-disabled='true']) {
+  color: #ffffff;
+}
+
+html.dark :is(button, a, [role='button'], [role='switch'], .text-white):is(.bg-slate-900, .\!bg-slate-900, .bg-accent):not(:disabled):not([aria-disabled='true']) {
+  background-color: #000000;
+  outline: 1px solid #475569;
+  outline-offset: -1px;
+}
+html.dark .border-slate-900,
+html.dark .\!border-slate-900 { border-color: #475569; }
+
+/* Interactive controls only: hover / active states. */
+html.dark :is(button, a, [role='button']).bg-slate-900.hover\:bg-slate-800:hover:not(:disabled):not([aria-disabled='true']) {
+  background-color: #1e293b;
+}
+html.dark :is(button, a, [role='button']).bg-slate-900.active\:bg-slate-950:active:not(:disabled):not([aria-disabled='true']) {
+  background-color: #334155;
+}
+/* Keep keyboard focus visible on the outlined fill. */
+html.dark :is(button, a, [role='button']).bg-slate-900:focus-visible { outline-color: #f8fafc; }
+
+/* Switch thumb is `bg-white`, which is the dark surface in dark mode; keep it a light knob. */
+html.dark [role='switch']:not(:disabled):not([aria-disabled='true']) > [data-switch-thumb] { background-color: #ffffff; }
+
+html.dark .bg-red-600:not(:disabled):not([aria-disabled='true']) {
+  background-color: #dc2626;
+  color: #ffffff;
+}
+html.dark :is(button, a, [role='button']).bg-red-600.hover\:bg-red-700:hover:not(:disabled):not([aria-disabled='true']) {
+  background-color: #b91c1c;
+}
+html.dark :is(button, a, [role='button']).bg-red-600.active\:bg-red-800:active:not(:disabled):not([aria-disabled='true']) {
+  background-color: #991b1b;
+}

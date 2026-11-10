@@ -1,0 +1,47 @@
+# syntax=docker/dockerfile:1.7
+# Build context: repo root. One file for both SPAs:
+#   podman build -f infra/Containerfile.web --build-arg APP=admin ...
+#   podman build -f infra/Containerfile.web --build-arg APP=employee ...
+FROM docker.io/library/node:24-bookworm-slim AS builder
+
+ARG APP=admin
+
+WORKDIR /app
+
+RUN corepack enable
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/api-client/package.json ./packages/api-client/
+COPY packages/ui/package.json ./packages/ui/
+COPY clients/admin/package.json ./clients/admin/
+COPY clients/employee/package.json ./clients/employee/
+
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
+
+COPY packages/ ./packages/
+COPY clients/${APP}/ ./clients/${APP}/
+
+# Vite inlines these at build time, so they are per-environment build args.
+ARG VITE_API_BASE_URL
+ARG VITE_EMPLOYEE_APP_URL
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+ENV VITE_EMPLOYEE_APP_URL=${VITE_EMPLOYEE_APP_URL}
+RUN pnpm --filter ${APP} build
+
+FROM docker.io/library/nginx:alpine AS runtime
+
+ARG APP=admin
+
+# The CSP connect-src is pinned to the API origin baked into the SPA (fail the build if unset).
+ARG VITE_API_BASE_URL
+COPY infra/nginx-spa.conf /etc/nginx/conf.d/default.conf
+RUN origin="$(printf '%s' "${VITE_API_BASE_URL}" | sed -E 's#^(https?://[^/]+).*#\1#')" \
+    && case "$origin" in http://*|https://*) ;; *) echo "VITE_API_BASE_URL must be an http(s) URL" >&2; exit 1;; esac \
+    && sed -i "s#__API_ORIGIN__#${origin}#g" /etc/nginx/conf.d/default.conf
+COPY --from=builder /app/clients/${APP}/dist /usr/share/nginx/html
+
+EXPOSE 80
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=5s --retries=3 \
+  CMD wget -qO- http://127.0.0.1/healthz || exit 1

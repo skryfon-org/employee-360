@@ -1,0 +1,13 @@
+{
+  "name": "employee-360",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "packageManager": "pnpm@11.5.3",
+  "scripts": {
+    "dev": "pnpm -r --parallel --if-present dev",
+    "build": "pnpm -r --if-present build",
+    "lint": "pnpm -r --if-present lint",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "generate:api": "pnpm --filter @employee360/api-client generate"
+  }
+}

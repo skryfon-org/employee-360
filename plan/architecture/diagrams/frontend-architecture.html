@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Employee360 Frontend Architecture</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js" integrity="sha384-en/ztfPSRkGfME4KIm05joYXynqzUgbsG5nMrj/xEFAHXkeZfO3yMK8QQ+mP7p1/" crossorigin="anonymous"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'JetBrains Mono', monospace; background: #020617; min-height: 100vh; padding: 2rem; color: white; }
+    .container { max-width: 1300px; margin: 0 auto; }
+    .header { margin-bottom: 2rem; }
+    .header-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; }
+    .pulse-dot { width: 12px; height: 12px; background: #22d3ee; border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.025em; }
+    .subtitle { color: #94a3b8; font-size: 0.875rem; margin-left: 1.75rem; }
+    .diagram-container { background: rgba(15, 23, 42, 0.5); border-radius: 1rem; border: 1px solid #1e293b; padding: 1.5rem; overflow-x: auto; }
+    svg { width: 100%; min-width: 1100px; display: block; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-top: 2rem; }
+    .card { background: rgba(15, 23, 42, 0.5); border-radius: 0.75rem; border: 1px solid #1e293b; padding: 1.25rem; }
+    .card-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .card-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .card-dot.cyan { background: #22d3ee; }
+    .card-dot.emerald { background: #34d399; }
+    .card-dot.violet { background: #a78bfa; }
+    .card-dot.amber { background: #fbbf24; }
+    .card-dot.rose { background: #fb7185; }
+    .card h3 { font-size: 0.875rem; font-weight: 600; }
+    .card ul { list-style: none; color: #94a3b8; font-size: 0.75rem; }
+    .card li { margin-bottom: 0.375rem; }
+    .footer { text-align: center; margin-top: 1.5rem; color: #475569; font-size: 0.75rem; }
+    .toolbar { display: flex; gap: 0.5rem; margin-left: auto; flex-shrink: 0; align-items: center; }
+    .toolbar-toggle { background: transparent; border: none; color: #475569; cursor: pointer; font-size: 1.25rem; line-height: 1; padding: 0.25rem 0.5rem; border-radius: 0.375rem; transition: color 0.2s, background 0.2s; }
+    .toolbar-toggle:hover { color: #94a3b8; background: rgba(30, 41, 59, 0.5); }
+    .toolbar-actions { display: none; gap: 0.5rem; }
+    .toolbar.expanded .toolbar-actions { display: flex; }
+    .toolbar-actions button { background: rgba(30, 41, 59, 0.8); border: 1px solid #334155; color: #94a3b8; padding: 0.375rem 0.75rem; border-radius: 0.375rem; font-family: inherit; font-size: 0.75rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+    .toolbar-actions button:hover { background: rgba(51, 65, 85, 0.8); color: white; border-color: #475569; }
+    @media print { body { background: #020617; padding: 1rem; } .toolbar { display: none !important; } }
+  </style>
+</head>
+<body>
+  <div class="container" id="report-container">
+    <div class="header">
+      <div class="header-row">
+        <div class="pulse-dot"></div>
+        <h1>Employee360 Frontend Architecture</h1>
+        <div class="toolbar">
+          <div class="toolbar-actions">
+            <button onclick="copyAsImage(this)">📋 Copy</button>
+            <button onclick="downloadPNG(this)">🖼️ PNG</button>
+            <button onclick="downloadPDF(this)">📄 PDF</button>
+          </div>
+          <button class="toolbar-toggle" onclick="this.parentElement.classList.toggle('expanded')" title="Export options" aria-label="Export options">⋯</button>
+        </div>
+      </div>
+      <p class="subtitle">pnpm monorepo — client apps, shared packages, state-management split &amp; multi-tenant request flow, from plan/architecture/frontend.md</p>
+    </div>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 1300 1300">
+        <defs>
+          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+          </marker>
+          <marker id="arrowhead-emerald" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#34d399" />
+          </marker>
+          <marker id="arrowhead-rose" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#fb7185" />
+          </marker>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+
+        <rect width="100%" height="100%" fill="url(#grid)" />
+
+        <!-- ============ WORKSPACE ROOT ============ -->
+        <rect x="450" y="20" width="400" height="65" rx="6" fill="rgba(30,41,59,0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="650" y="40" fill="white" font-size="11" font-weight="600" text-anchor="middle">pnpm workspace root</text>
+        <text x="650" y="55" fill="#94a3b8" font-size="8" text-anchor="middle">package.json + pnpm-workspace.yaml</text>
+        <text x="650" y="68" fill="#94a3b8" font-size="8" text-anchor="middle">workspaces: clients/*, packages/*</text>
+
+        <line x1="590" y1="85" x2="330" y2="108" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <line x1="710" y1="85" x2="970" y2="108" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+        <!-- ============ ADMIN PORTAL ============ -->
+        <rect x="40" y="110" width="580" height="500" rx="10" fill="rgba(8,51,68,0.10)" stroke="#22d3ee" stroke-width="1.2" stroke-dasharray="7,4"/>
+        <text x="55" y="130" fill="#22d3ee" font-size="11" font-weight="700">ADMIN PORTAL</text>
+        <text x="55" y="143" fill="#94a3b8" font-size="8">clients/admin — Organization, Users, Roles, Holidays, Audit</text>
+
+        <rect x="60" y="155" width="540" height="58" rx="6" fill="rgba(8,51,68,0.3)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="330" y="169" fill="white" font-size="8.5" font-weight="600" text-anchor="middle">components/ (shared cross-feature UI)</text>
+        <text x="72" y="184" fill="#94a3b8" font-size="7">layout/</text>
+        <text x="72" y="195" fill="#94a3b8" font-size="6.5">AppShell, Sidebar, Header</text>
+        <text x="222" y="184" fill="#94a3b8" font-size="7">ui/</text>
+        <text x="222" y="195" fill="#94a3b8" font-size="6.5">Buttons, Modals, Tables</text>
+        <text x="392" y="184" fill="#94a3b8" font-size="7">feedback/</text>
+        <text x="392" y="195" fill="#94a3b8" font-size="6.5">Toasts, AlertBanners</text>
+
+        <text x="60" y="228" fill="white" font-size="8.5" font-weight="600">features/ — 9 domain modules (components · pages · queries · schemas · routes.tsx)</text>
+
+        <rect x="60" y="236" width="165" height="36" rx="5" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1"/>
+        <text x="142" y="249" fill="white" font-size="7.5" text-anchor="middle">auth</text>
+        <text x="142" y="260" fill="#94a3b8" font-size="6.5" text-anchor="middle">LoginForm, ProtectedRoute</text>
+        <rect x="240" y="236" width="165" height="36" rx="5" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1"/>
+        <text x="322" y="249" fill="white" font-size="7.5" text-anchor="middle">users</text>
+        <text x="322" y="260" fill="#94a3b8" font-size="6.5" text-anchor="middle">UserTable, onboarding</text>
+        <rect x="420" y="236" width="165" height="36" rx="5" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1"/>
+        <text x="502" y="249" fill="white" font-size="7.5" text-anchor="middle">departments</text>
+        <text x="502" y="260" fill="#94a3b8" font-size="6.5" text-anchor="middle">DepartmentTree</text>
+
+        <rect x="60" y="278" width="165" height="36" rx="5" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1"/>
+        <text x="142" y="291" fill="white" font-size="7.5" text-anchor="middle">positions</text>
+        <text x="142" y="302" fill="#94a3b8" font-size="6.5" text-anchor="middle">PositionTable</text>
+        <rect x="240" y="278" width="165" height="36" rx="5" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1"/>
+        <text x="322" y="291" fill="white" font-size="7.5" text-anchor="middle">roles</text>
+        <text x="322" y="302" fill="#94a3b8" font-size="6.5" text-anchor="middle">RolePermissionMatrix</text>
+        <rect x="420" y="278" width="165" height="36" rx="5" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1"/>
+        <text x="502" y="291" fill="white" font-size="7.5" text-anchor="middle">holidays</text>
+        <text x="502" y="302" fill="#94a3b8" font-size="6.5" text-anchor="middle">Calendar management</text>
+
+        <rect x="60" y="320" width="165" height="36" rx="5" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1"/>
+        <text x="142" y="333" fill="white" font-size="7.5" text-anchor="middle">categories</text>
+        <text x="142" y="344" fill="#94a3b8" font-size="6.5" text-anchor="middle">CategoryModal</text>
+        <rect x="240" y="320" width="165" height="36" rx="5" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1"/>
+        <text x="322" y="333" fill="white" font-size="7.5" text-anchor="middle">audit</text>
+        <text x="322" y="344" fill="#94a3b8" font-size="6.5" text-anchor="middle">AuditLogTable, DiffViewer</text>
+        <rect x="420" y="320" width="165" height="36" rx="5" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1"/>
+        <text x="502" y="333" fill="white" font-size="7.5" text-anchor="middle">dashboard</text>
+        <text x="502" y="344" fill="#94a3b8" font-size="6.5" text-anchor="middle">Summary widgets</text>
+
+        <rect x="60" y="366" width="540" height="32" rx="6" fill="rgba(30,41,59,0.4)" stroke="#94a3b8" stroke-width="1"/>
+        <text x="330" y="386" fill="#94a3b8" font-size="7.5" text-anchor="middle">hooks/ — useDebounce, useTenantContext, useHasRole   ·   lib/ — formatting, date-fns helpers</text>
+
+        <rect x="60" y="406" width="540" height="58" rx="6" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="330" y="420" fill="white" font-size="8.5" font-weight="600" text-anchor="middle">stores/ (Zustand — client/UI state only)</text>
+        <text x="72" y="436" fill="#e9d5ff" font-size="7">authStore.ts</text>
+        <text x="72" y="447" fill="#94a3b8" font-size="6.5">tokens, active user, roles</text>
+        <text x="320" y="436" fill="#e9d5ff" font-size="7">uiStore.ts</text>
+        <text x="320" y="447" fill="#94a3b8" font-size="6.5">sidebar, theme, active modal</text>
+
+        <rect x="60" y="472" width="540" height="40" rx="6" fill="rgba(30,41,59,0.4)" stroke="#94a3b8" stroke-width="1"/>
+        <text x="330" y="489" fill="#94a3b8" font-size="7.5" text-anchor="middle">App.tsx (router + React Query provider)  ·  main.tsx  ·  index.css (Tailwind)</text>
+
+        <!-- ============ EMPLOYEE PORTAL ============ -->
+        <rect x="680" y="110" width="580" height="500" rx="10" fill="rgba(8,51,68,0.10)" stroke="#22d3ee" stroke-width="1.2" stroke-dasharray="7,4"/>
+        <text x="695" y="130" fill="#22d3ee" font-size="11" font-weight="700">EMPLOYEE PORTAL</text>
+        <text x="695" y="143" fill="#94a3b8" font-size="8">clients/employee — Holiday Calendar, Profile, Email Login</text>
+
+        <rect x="700" y="155" width="540" height="58" rx="6" fill="rgba(8,51,68,0.3)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="970" y="169" fill="white" font-size="8.5" font-weight="600" text-anchor="middle">components/ (shared cross-feature UI)</text>
+        <text x="712" y="184" fill="#94a3b8" font-size="7">layout/</text>
+        <text x="712" y="195" fill="#94a3b8" font-size="6.5">EmployeeLayout, Navbar</text>
+        <text x="880" y="184" fill="#94a3b8" font-size="7">ui/</text>
+        <text x="880" y="195" fill="#94a3b8" font-size="6.5">View Toggle, CategoryFilter</text>
+        <text x="1060" y="184" fill="#94a3b8" font-size="7">feedback/</text>
+        <text x="1060" y="195" fill="#94a3b8" font-size="6.5">Spinner, error states</text>
+
+        <text x="700" y="228" fill="white" font-size="8.5" font-weight="600">features/ — 2 domain modules (components · pages · queries · schemas · routes.tsx)</text>
+
+        <rect x="700" y="236" width="260" height="120" rx="6" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="830" y="252" fill="white" font-size="8.5" font-weight="600" text-anchor="middle">auth/ (passwordless)</text>
+        <text x="712" y="268" fill="#94a3b8" font-size="6.5">components: EmailLoginForm, OtpVerifyForm</text>
+        <text x="712" y="281" fill="#94a3b8" font-size="6.5">pages: LoginPage, VerifyPage</text>
+        <text x="712" y="294" fill="#94a3b8" font-size="6.5">queries: useSendOtpMutation,</text>
+        <text x="712" y="305" fill="#94a3b8" font-size="6.5">useVerifyOtpMutation</text>
+        <text x="712" y="318" fill="#94a3b8" font-size="6.5">schemas: emailLoginSchema, otpSchema</text>
+        <text x="712" y="331" fill="#94a3b8" font-size="6.5">routes: routes.tsx</text>
+        <text x="712" y="347" fill="#fb7185" font-size="6.5" font-weight="600">email OTP / magic-link — no password</text>
+
+        <rect x="980" y="236" width="260" height="120" rx="6" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="1110" y="252" fill="white" font-size="8.5" font-weight="600" text-anchor="middle">calendar/</text>
+        <text x="992" y="268" fill="#94a3b8" font-size="6.5">components: CalendarGrid, MonthView,</text>
+        <text x="992" y="279" fill="#94a3b8" font-size="6.5">HolidayListView, HolidayBadge</text>
+        <text x="992" y="294" fill="#94a3b8" font-size="6.5">pages: CalendarPage,</text>
+        <text x="992" y="305" fill="#94a3b8" font-size="6.5">UpcomingHolidaysPage</text>
+        <text x="992" y="320" fill="#94a3b8" font-size="6.5">queries: useEmployeeHolidaysQuery</text>
+        <text x="992" y="333" fill="#94a3b8" font-size="6.5">routes: routes.tsx</text>
+
+        <rect x="700" y="366" width="540" height="32" rx="6" fill="rgba(30,41,59,0.4)" stroke="#94a3b8" stroke-width="1"/>
+        <text x="970" y="386" fill="#94a3b8" font-size="7.5" text-anchor="middle">hooks/ — useCalendarNavigation   ·   lib/ — date formatting helpers</text>
+
+        <rect x="700" y="406" width="540" height="58" rx="6" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="970" y="420" fill="white" font-size="8.5" font-weight="600" text-anchor="middle">stores/ (Zustand — client/UI state only)</text>
+        <text x="712" y="436" fill="#e9d5ff" font-size="7">authStore.ts</text>
+        <text x="712" y="447" fill="#94a3b8" font-size="6.5">employee session &amp; tenant info</text>
+        <text x="960" y="436" fill="#e9d5ff" font-size="7">calendarStore.ts</text>
+        <text x="960" y="447" fill="#94a3b8" font-size="6.5">active year, view, filters</text>
+
+        <rect x="700" y="472" width="540" height="40" rx="6" fill="rgba(30,41,59,0.4)" stroke="#94a3b8" stroke-width="1"/>
+        <text x="970" y="489" fill="#94a3b8" font-size="7.5" text-anchor="middle">App.tsx (router + React Query provider)  ·  main.tsx  ·  index.css (Tailwind)</text>
+
+        <!-- ============ FLOW: APPS -> SHARED PACKAGES ============ -->
+        <line x1="330" y1="610" x2="330" y2="648" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <line x1="970" y1="610" x2="970" y2="648" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <text x="345" y="635" fill="#94a3b8" font-size="7.5">imports</text>
+        <text x="985" y="635" fill="#94a3b8" font-size="7.5">imports</text>
+
+        <!-- ============ packages/api-client ============ -->
+        <rect x="40" y="650" width="900" height="210" rx="10" fill="rgba(6,78,59,0.08)" stroke="#34d399" stroke-width="1.2" stroke-dasharray="7,4"/>
+        <text x="55" y="670" fill="#34d399" font-size="11" font-weight="700">packages/api-client</text>
+        <text x="55" y="683" fill="#94a3b8" font-size="8">shared typed API client + TanStack Query hooks, used by both apps</text>
+
+        <rect x="60" y="695" width="160" height="135" rx="6" fill="rgba(136,19,55,0.35)" stroke="#fb7185" stroke-width="1.5"/>
+        <text x="140" y="710" fill="white" font-size="8" font-weight="600" text-anchor="middle">client.ts</text>
+        <text x="70" y="726" fill="#fecdd3" font-size="6.5">Axios instance</text>
+        <text x="70" y="742" fill="#94a3b8" font-size="6.5">Interceptors:</text>
+        <text x="70" y="756" fill="#fecdd3" font-size="6.5">• Authorization:</text>
+        <text x="70" y="768" fill="#fecdd3" font-size="6.5">  Bearer &lt;JWT&gt;</text>
+        <text x="70" y="784" fill="#fecdd3" font-size="6.5">• X-Tenant-ID header</text>
+        <text x="70" y="802" fill="#94a3b8" font-size="6" font-weight="600">attached to every</text>
+        <text x="70" y="813" fill="#94a3b8" font-size="6" font-weight="600">outgoing request</text>
+
+        <rect x="235" y="695" width="160" height="135" rx="6" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="315" y="710" fill="white" font-size="8" font-weight="600" text-anchor="middle">customInstance.ts</text>
+        <text x="245" y="730" fill="#94a3b8" font-size="6.5">Custom fetch / request</text>
+        <text x="245" y="742" fill="#94a3b8" font-size="6.5">wrapper used by every</text>
+        <text x="245" y="754" fill="#94a3b8" font-size="6.5">generated hook</text>
+
+        <rect x="410" y="695" width="160" height="135" rx="6" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="490" y="710" fill="white" font-size="8" font-weight="600" text-anchor="middle">secureStorage.ts</text>
+        <text x="420" y="730" fill="#94a3b8" font-size="6.5">Token storage</text>
+        <text x="420" y="742" fill="#94a3b8" font-size="6.5">abstraction</text>
+        <text x="420" y="758" fill="#94a3b8" font-size="6.5">(memory / secure</text>
+        <text x="420" y="770" fill="#94a3b8" font-size="6.5">cookies)</text>
+
+        <rect x="585" y="695" width="160" height="135" rx="6" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="665" y="710" fill="white" font-size="8" font-weight="600" text-anchor="middle">unwrap.ts</text>
+        <text x="595" y="730" fill="#94a3b8" font-size="6.5">Standard response</text>
+        <text x="595" y="742" fill="#94a3b8" font-size="6.5">envelope unwrapping</text>
+        <text x="595" y="754" fill="#94a3b8" font-size="6.5">helper</text>
+        <text x="665" y="790" fill="white" font-size="7" text-anchor="middle" font-weight="600">index.ts</text>
+        <text x="665" y="802" fill="#94a3b8" font-size="6.5" text-anchor="middle">public package exports</text>
+
+        <rect x="760" y="695" width="160" height="135" rx="6" fill="rgba(120,53,15,0.35)" stroke="#fbbf24" stroke-width="1.5"/>
+        <text x="840" y="710" fill="white" font-size="8" font-weight="600" text-anchor="middle">generated/</text>
+        <text x="770" y="728" fill="#fde68a" font-size="6.5">models/</text>
+        <text x="770" y="739" fill="#94a3b8" font-size="6.5">TS types &amp; DTOs</text>
+        <text x="770" y="756" fill="#fde68a" font-size="6.5">hooks/</text>
+        <text x="770" y="767" fill="#94a3b8" font-size="6.5">React Query hooks</text>
+        <text x="770" y="786" fill="#94a3b8" font-size="6" font-weight="600">produced by orval</text>
+        <text x="770" y="797" fill="#94a3b8" font-size="6" font-weight="600">— never hand-edited</text>
+
+        <!-- ============ packages/ui ============ -->
+        <rect x="960" y="650" width="300" height="210" rx="10" fill="rgba(8,51,68,0.10)" stroke="#22d3ee" stroke-width="1.2" stroke-dasharray="7,4"/>
+        <text x="975" y="670" fill="#22d3ee" font-size="11" font-weight="700">packages/ui</text>
+        <text x="975" y="683" fill="#94a3b8" font-size="8">(optional)</text>
+        <text x="975" y="705" fill="#e2e8f0" font-size="7.5">Shared design tokens &amp;</text>
+        <text x="975" y="717" fill="#e2e8f0" font-size="7.5">primitive UI components</text>
+        <text x="975" y="735" fill="#94a3b8" font-size="7">consumed by both</text>
+        <text x="975" y="747" fill="#94a3b8" font-size="7">clients/admin/src/components/ui/</text>
+        <text x="975" y="759" fill="#94a3b8" font-size="7">and clients/employee equivalent</text>
+
+        <!-- ============ FLOW: api-client -> backend ============ -->
+        <line x1="140" y1="830" x2="600" y2="918" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrowhead-emerald)"/>
+        <text x="330" y="895" fill="#34d399" font-size="7.5">HTTPS · Authorization Bearer + X-Tenant-ID</text>
+
+        <rect x="450" y="920" width="400" height="70" rx="8" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1.5" stroke-dasharray="7,4"/>
+        <text x="650" y="943" fill="white" font-size="11" font-weight="700" text-anchor="middle">Backend API — /api/v1 (Go + Gin)</text>
+        <text x="650" y="959" fill="#94a3b8" font-size="8" text-anchor="middle">External to this monorepo — see backend-architecture.html</text>
+        <text x="650" y="972" fill="#94a3b8" font-size="7.5" text-anchor="middle">tenant_id resolved server-side from these same headers</text>
+
+        <!-- ============ CALLOUTS ============ -->
+        <rect x="40" y="1010" width="380" height="190" rx="10" fill="rgba(136,19,55,0.15)" stroke="#fb7185" stroke-width="1.2" stroke-dasharray="4,4"/>
+        <text x="55" y="1032" fill="#fb7185" font-size="10" font-weight="700">State Management Split</text>
+        <text x="55" y="1052" fill="#e2e8f0" font-size="7.5">• Server state → TanStack Query,</text>
+        <text x="55" y="1063" fill="#e2e8f0" font-size="7.5">  via api-client generated hooks</text>
+        <text x="55" y="1078" fill="#e2e8f0" font-size="7.5">• Handles caching, background</text>
+        <text x="55" y="1089" fill="#e2e8f0" font-size="7.5">  refetch, optimistic updates</text>
+        <text x="55" y="1108" fill="#e2e8f0" font-size="7.5">• Client/UI state → Zustand,</text>
+        <text x="55" y="1119" fill="#e2e8f0" font-size="7.5">  scoped per app (own store files)</text>
+        <text x="55" y="1138" fill="#fecdd3" font-size="7.5" font-weight="600">• Zustand never holds server data</text>
+        <text x="55" y="1149" fill="#fecdd3" font-size="7.5" font-weight="600">  — filters, sidebar, modals,</text>
+        <text x="55" y="1160" fill="#fecdd3" font-size="7.5" font-weight="600">  theme only</text>
+
+        <rect x="440" y="1010" width="380" height="190" rx="10" fill="rgba(136,19,55,0.20)" stroke="#fb7185" stroke-width="1.2"/>
+        <text x="455" y="1032" fill="#fb7185" font-size="10" font-weight="700">Multi-Tenant Context</text>
+        <text x="455" y="1052" fill="#e2e8f0" font-size="7.5">• Tenant resolved at login: email</text>
+        <text x="455" y="1063" fill="#e2e8f0" font-size="7.5">  domain or authenticated token</text>
+        <text x="455" y="1074" fill="#e2e8f0" font-size="7.5">  claims</text>
+        <text x="455" y="1093" fill="#e2e8f0" font-size="7.5">• client.ts interceptor auto-attaches</text>
+        <text x="455" y="1104" fill="#e2e8f0" font-size="7.5">  X-Tenant-ID + Authorization Bearer</text>
+        <text x="455" y="1123" fill="#e2e8f0" font-size="7.5">• Applied to every outgoing request,</text>
+        <text x="455" y="1134" fill="#e2e8f0" font-size="7.5">  automatically — no per-call wiring</text>
+        <text x="455" y="1153" fill="#fecdd3" font-size="7.5" font-weight="600">• Feature code never sets or reads</text>
+        <text x="455" y="1164" fill="#fecdd3" font-size="7.5" font-weight="600">  a tenant id directly</text>
+
+        <rect x="840" y="1010" width="380" height="190" rx="10" fill="rgba(120,53,15,0.20)" stroke="#fbbf24" stroke-width="1.2"/>
+        <text x="855" y="1032" fill="#fbbf24" font-size="10" font-weight="700">API Codegen Pipeline</text>
+        <text x="855" y="1052" fill="#e2e8f0" font-size="7.5">• orval.config.ts drives generation</text>
+        <text x="855" y="1071" fill="#e2e8f0" font-size="7.5">• Backend OpenAPI spec (/api/v1)</text>
+        <text x="855" y="1082" fill="#e2e8f0" font-size="7.5">  → generated/models (TS types)</text>
+        <text x="855" y="1093" fill="#e2e8f0" font-size="7.5">  → generated/hooks (RQ hooks)</text>
+        <text x="855" y="1112" fill="#e2e8f0" font-size="7.5">• Re-run whenever the backend API</text>
+        <text x="855" y="1123" fill="#e2e8f0" font-size="7.5">  contract changes</text>
+        <text x="855" y="1142" fill="#fde68a" font-size="7.5" font-weight="600">• Keeps client &amp; server types in</text>
+        <text x="855" y="1153" fill="#fde68a" font-size="7.5" font-weight="600">  sync — no hand-written DTOs</text>
+
+        <!-- ============ LEGEND ============ -->
+        <text x="40" y="1235" fill="white" font-size="10" font-weight="600">Legend</text>
+
+        <rect x="40" y="1247" width="16" height="10" rx="2" fill="rgba(8,51,68,0.4)" stroke="#22d3ee" stroke-width="1"/>
+        <text x="62" y="1255" fill="#94a3b8" font-size="8">App shell / UI (client apps &amp; packages/ui)</text>
+
+        <rect x="330" y="1247" width="16" height="10" rx="2" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1"/>
+        <text x="352" y="1255" fill="#94a3b8" font-size="8">Feature module / shared library logic</text>
+
+        <rect x="620" y="1247" width="16" height="10" rx="2" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1"/>
+        <text x="642" y="1255" fill="#94a3b8" font-size="8">Client state store (Zustand)</text>
+
+        <rect x="850" y="1247" width="16" height="10" rx="2" fill="rgba(136,19,55,0.35)" stroke="#fb7185" stroke-width="1"/>
+        <text x="872" y="1255" fill="#94a3b8" font-size="8">Security / tenant interceptor</text>
+
+        <rect x="40" y="1267" width="16" height="10" rx="2" fill="rgba(120,53,15,0.35)" stroke="#fbbf24" stroke-width="1"/>
+        <text x="62" y="1275" fill="#94a3b8" font-size="8">Codegen output / build tooling</text>
+
+        <rect x="330" y="1267" width="16" height="10" rx="2" fill="rgba(30,41,59,0.5)" stroke="#94a3b8" stroke-width="1"/>
+        <text x="352" y="1275" fill="#94a3b8" font-size="8">Workspace root / entry file</text>
+
+        <line x1="620" y1="1272" x2="636" y2="1272" stroke="#64748b" stroke-width="1.5"/>
+        <text x="642" y="1275" fill="#94a3b8" font-size="8">Import / data flow</text>
+      </svg>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot cyan"></div>
+          <h3>Feature-Driven Structure</h3>
+        </div>
+        <ul>
+          <li>• Each features/&lt;feature&gt;/ is self-contained: components, pages, queries, schemas, routes.tsx</li>
+          <li>• Admin: auth, users, departments, positions, roles, holidays, categories, audit, dashboard</li>
+          <li>• Employee: auth (passwordless), calendar</li>
+          <li>• Cross-feature UI lives in components/{layout,ui,feedback}/, not inside a feature</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot violet"></div>
+          <h3>State Separation</h3>
+        </div>
+        <ul>
+          <li>• Server state — TanStack Query only, via @employee360/api-client hooks</li>
+          <li>• Client/UI state — Zustand stores, one authStore + one feature store per app</li>
+          <li>• Forms &amp; validation — React Hook Form + Zod schemas per feature</li>
+          <li>• Zustand strictly holds client-only state: filters, sidebar, active modal, theme</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot rose"></div>
+          <h3>Multi-Tenant API Client</h3>
+        </div>
+        <ul>
+          <li>• Single Axios instance (client.ts) shared by both apps via packages/api-client</li>
+          <li>• Interceptors attach Authorization Bearer JWT + X-Tenant-ID automatically</li>
+          <li>• Tenant resolved once at login (email domain / token claims), not per-request</li>
+          <li>• generated/ (orval + OpenAPI) keeps client types in sync with the Go backend</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="footer">
+      Employee360 Frontend • React · TypeScript · Vite · Tailwind · TanStack Query · Zustand · pnpm workspaces — generated from plan/architecture/frontend.md
+    </p>
+  </div>
+
+  <script>
+    async function copyAsImage(btn) {
+      const orig = btn.textContent;
+      try {
+        const el = document.getElementById('report-container');
+        const r = el.getBoundingClientRect();
+        const pad = 32;
+        const canvas = await html2canvas(document.body, { backgroundColor: '#020617', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        btn.textContent = '✓ Copied!';
+      } catch (e) {
+        btn.textContent = '✗ Failed';
+      }
+      setTimeout(() => btn.textContent = orig, 2000);
+    }
+
+    async function downloadPNG(btn) {
+      const orig = btn.textContent;
+      btn.textContent = '⏳ ...';
+      try {
+        const el = document.getElementById('report-container');
+        const r = el.getBoundingClientRect();
+        const pad = 32;
+        const canvas = await html2canvas(document.body, { backgroundColor: '#020617', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const link = document.createElement('a');
+        link.download = 'employee360-frontend-architecture.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        btn.textContent = '✓ Done!';
+      } catch (e) {
+        btn.textContent = '✗ Failed';
+      }
+      setTimeout(() => btn.textContent = orig, 2000);
+    }
+
+    async function downloadPDF(btn) {
+      const orig = btn.textContent;
+      btn.textContent = '⏳ ...';
+      try {
+        const el = document.getElementById('report-container');
+        const r = el.getBoundingClientRect();
+        const pad = 32;
+        const canvas = await html2canvas(document.body, { backgroundColor: '#020617', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const imgData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const orientation = canvas.width > canvas.height ? 'landscape' : 'portrait';
+        const pdf = new jsPDF({ orientation, unit: 'px', format: [canvas.width, canvas.height], hotfixes: ['px_scaling'] });
+        pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+        pdf.save('employee360-frontend-architecture.pdf');
+        btn.textContent = '✓ Done!';
+      } catch (e) {
+        btn.textContent = '✗ Failed';
+      }
+      setTimeout(() => btn.textContent = orig, 2000);
+    }
+  </script>
+</body>
+</html>

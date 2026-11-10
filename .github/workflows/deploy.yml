@@ -1,0 +1,168 @@
+name: Deploy
+
+# Dispatched by release-images.yml after images are pushed (or run manually).
+# Each GitHub environment (staging / production) maps to its own EC2 host via the
+# SSH_HOST secret; the quadlets use fixed names/ports, so one environment per host.
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to deploy"
+        required: true
+        type: choice
+        options: [staging, production]
+      sha:
+        description: "Full git SHA to deploy (must have an <environment>-<sha> image already published)"
+        required: true
+
+concurrency:
+  group: deploy-${{ github.event.inputs.environment }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to ${{ github.event.inputs.environment }}
+    if: github.repository == 'skryfon-org/employee-360'
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    permissions:
+      contents: read
+      packages: read
+
+    env:
+      REGISTRY: ghcr.io
+      OWNER: ${{ github.repository_owner }}
+      ENV: ${{ github.event.inputs.environment }}
+      SHA: ${{ github.event.inputs.sha }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.sha }}
+
+      - name: Copy quadlet units
+        uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634 # v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: deploy
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: infra/server/quadlets/*
+          target: /home/deploy/.config/containers/systemd
+          strip_components: 3
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
+        env:
+          TAG: ${{ github.event.inputs.environment }}-${{ github.event.inputs.sha }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          API_ENV: ${{ secrets.API_ENV_FILE }}
+          POSTGRES_ENV: ${{ secrets.POSTGRES_ENV_FILE }}
+          REDIS_ENV: ${{ secrets.REDIS_ENV_FILE }}
+          ADMIN_EMAIL: ${{ vars.BOOTSTRAP_SUPER_ADMIN_EMAIL }}
+          ADMIN_PASSWORD: ${{ secrets.BOOTSTRAP_SUPER_ADMIN_PASSWORD }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: deploy
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: REGISTRY,OWNER,TAG,GHCR_USER,GHCR_TOKEN,API_ENV,POSTGRES_ENV,REDIS_ENV,ADMIN_EMAIL,ADMIN_PASSWORD
+          script: |
+            set -euo pipefail
+            export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+            export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus"
+            CONF=/home/deploy/.config/employee360
+            IMG="${REGISTRY}/${OWNER}/employee360"
+
+            # Without linger the user services die when the last SSH session closes.
+            if [[ "$(loginctl show-user "$(whoami)" -p Linger --value)" != "yes" ]]; then
+              echo "ERROR: linger is disabled for $(whoami); run infra/server/bootstrap.sh" >&2
+              exit 1
+            fi
+
+            echo "==> Writing env files"
+            mkdir -p "$CONF"
+            write_env() {
+              echo "  writing $2"
+              (umask 077; printf '%s' "$1" | sed "s/='\(.*\)'$/=\1/; s/=\"\(.*\)\"$/=\1/" > "$2")
+            }
+            write_env "$API_ENV"      "$CONF/api.env"
+            if [[ -n "$POSTGRES_ENV" ]]; then write_env "$POSTGRES_ENV" "$CONF/postgres.env"; fi
+            if [[ -n "$REDIS_ENV" ]]; then write_env "$REDIS_ENV" "$CONF/redis.env"; fi
+
+            # APP_ENV=production makes the API reject default secrets (JWT, Redis password).
+            grep -q '^APP_ENV=production$' "$CONF/api.env" || { echo "ERROR: api.env must set APP_ENV=production" >&2; exit 1; }
+            # External database (e.g. Aurora/RDS) when DATABASE_URL is set; otherwise the bundled Postgres container.
+            USE_LOCAL_PG=true
+            if grep -q '^DATABASE_URL=.' "$CONF/api.env"; then USE_LOCAL_PG=false; fi
+            if [[ "$USE_LOCAL_PG" == true ]]; then
+              grep -q '^DATABASE_HOST=employee360-postgres$' "$CONF/api.env" || { echo "ERROR: api.env must set DATABASE_URL, or DATABASE_HOST=employee360-postgres" >&2; exit 1; }
+              [[ -f "$CONF/postgres.env" ]] || { echo "ERROR: POSTGRES_ENV_FILE secret is required for the bundled Postgres" >&2; exit 1; }
+            fi
+
+            echo "==> Pulling images (${TAG})"
+            echo "${GHCR_TOKEN}" | podman login "${REGISTRY}" --username "${GHCR_USER}" --password-stdin
+            for name in api admin employee; do
+              podman pull "$IMG-$name:$TAG"
+              if podman image exists "localhost/employee360-$name:current"; then
+                podman tag "localhost/employee360-$name:current" "localhost/employee360-$name:previous"
+              fi
+              podman tag "$IMG-$name:$TAG" "localhost/employee360-$name:current"
+            done
+
+            echo "==> Starting infrastructure"
+            systemctl --user daemon-reload
+            # The migrate/bootstrap containers join this network before any app unit starts.
+            systemctl --user start employee360-network
+            if [[ "$USE_LOCAL_PG" == true ]]; then
+              systemctl --user start employee360-postgres
+              for i in $(seq 1 24); do
+                podman healthcheck run employee360-postgres >/dev/null 2>&1 && break
+                [[ "$i" -eq 24 ]] && { echo "ERROR: postgres not healthy after 120s" >&2; journalctl --user -u employee360-postgres -n 50 --no-pager; exit 1; }
+                sleep 5
+              done
+            fi
+            if grep -q '^REDIS_ENABLED=true$' "$CONF/api.env"; then
+              systemctl --user start employee360-redis
+            fi
+
+            echo "==> Running migrations"
+            podman run --rm --network employee360 \
+              --entrypoint /usr/local/bin/migrate \
+              --env-file "$CONF/api.env" \
+              localhost/employee360-api:current -dir /migrations up
+
+            # Idempotent seed of the system tenant, roles and super admin; skipped until
+            # the BOOTSTRAP_SUPER_ADMIN_EMAIL variable is set on the environment.
+            if [[ -n "${ADMIN_EMAIL}" && -n "${ADMIN_PASSWORD}" ]]; then
+              echo "==> Bootstrapping super-admin: ${ADMIN_EMAIL}"
+              podman run --rm --network employee360 \
+                --env-file "$CONF/api.env" \
+                -e "BOOTSTRAP_SUPER_ADMIN_EMAIL=${ADMIN_EMAIL}" \
+                -e "BOOTSTRAP_SUPER_ADMIN_PASSWORD=${ADMIN_PASSWORD}" \
+                --entrypoint /usr/local/bin/bootstrap \
+                localhost/employee360-api:current
+            else
+              echo "==> Skipping bootstrap (BOOTSTRAP_SUPER_ADMIN_EMAIL variable not set)"
+            fi
+
+            echo "==> Restarting app services"
+            systemctl --user restart employee360-api employee360-worker employee360-admin employee360-employee
+
+            echo "==> Smoke test"
+            ok=true
+            for check in "api|http://127.0.0.1:8080/health" "admin|http://127.0.0.1:3003/healthz" "employee|http://127.0.0.1:3004/healthz"; do
+              name="${check%%|*}"; url="${check##*|}"
+              for i in $(seq 1 12); do curl -fsS --max-time 5 "$url" >/dev/null 2>&1 && break; sleep 5; done
+              if curl -fsS --max-time 5 "$url" >/dev/null 2>&1; then echo "  $name OK"; else
+                echo "  FAIL $name ($url)"; podman logs --tail 80 "employee360-$name" 2>&1 || true; ok=false
+              fi
+            done
+            systemctl --user is-active employee360-worker >/dev/null || { echo "  FAIL worker"; podman logs --tail 80 employee360-worker 2>&1 || true; ok=false; }
+            [[ "$ok" == true ]] || { echo "Smoke test FAILED" >&2; exit 1; }
+
+            echo "==> Pruning"
+            podman image prune -f
+            echo "Deployed ${TAG}"

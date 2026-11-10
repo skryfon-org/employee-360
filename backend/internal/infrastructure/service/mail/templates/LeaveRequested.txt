@@ -1,0 +1,15 @@
+{{if .ApproverName}}Hi {{.ApproverName}},
+
+{{end}}{{.EmployeeName}} has requested leave and chose you as the approver.
+
+Leave type: {{.LeaveType}}
+From: {{.StartDate}}
+To: {{.EndDate}}
+Duration: {{.Duration}}
+{{if .Reason}}Reason: {{.Reason}}
+{{end}}
+Review the request here:
+{{.ReviewURL}}
+
+Best regards,
+Employee360 Team

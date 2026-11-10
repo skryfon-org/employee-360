@@ -1,0 +1,5 @@
+# Changes to these paths need a review from a maintainer (see CONTRIBUTING.md#review-procedure).
+/backend/internal/delivery/http/middleware/  @sarathkumarps17 @ebinskryfon
+/backend/migrations/                         @sarathkumarps17 @ebinskryfon
+/.github/                                    @sarathkumarps17 @ebinskryfon
+/infra/                                      @sarathkumarps17 @ebinskryfon

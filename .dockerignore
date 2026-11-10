@@ -1,0 +1,9 @@
+.git
+**/node_modules
+**/dist
+backend/bin
+.env
+backend/.env
+plan
+.claude
+.agents

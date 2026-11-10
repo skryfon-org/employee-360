@@ -1,0 +1,11 @@
+Welcome{{if .UserName}}, {{.UserName}}{{end}}!
+
+Your account at {{if .TenantName}}{{.TenantName}}{{else}}Employee360{{end}} is now active.
+
+{{if .WelcomeMessage}}{{.WelcomeMessage}}{{else}}We're glad to have you on board. Sign in to explore your workspace, view the holiday calendar and find your colleagues.{{end}}
+
+Sign in here:
+{{.LoginURL}}
+
+Best regards,
+Employee360 Team

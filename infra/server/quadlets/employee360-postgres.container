@@ -1,0 +1,26 @@
+[Unit]
+Description=Employee360 Postgres
+After=network-online.target
+
+[Container]
+ContainerName=employee360-postgres
+Image=docker.io/postgres:16-alpine
+Pull=missing
+Network=employee360.network
+EnvironmentFile=%h/.config/employee360/postgres.env
+# Loopback only, for psql / backups over SSH. Containers reach it by name.
+PublishPort=127.0.0.1:5432:5432
+Volume=employee360-postgres-data:/var/lib/postgresql/data:U
+
+HealthCmd=pg_isready
+HealthInterval=15s
+HealthRetries=3
+HealthStartPeriod=15s
+
+[Service]
+Restart=on-failure
+RestartSec=5s
+TimeoutStartSec=60
+
+[Install]
+WantedBy=default.target

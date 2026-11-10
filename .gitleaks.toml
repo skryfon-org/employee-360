@@ -1,0 +1,18 @@
+# gitleaks config: default rules plus a few known false-positive paths.
+# Path-based (not .gitleaksignore fingerprints) so it survives history rewrites.
+# Keep this list narrow; never allowlist real config or source files.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known false positives"
+paths = [
+  # Orval-generated types: long PascalCase names trip generic-api-key.
+  '''(^|/)packages/api-client/src/generated/''',
+  # Test fixtures with dummy passwords/secrets.
+  '''(^|/)backend/integration/[^/]+_test\.go$''',
+  '''(^|/)backend/config/config_test\.go$''',
+  # Prose in AI-agent skill docs.
+  '''(^|/)\.claude/skills/[^/]+/SKILL\.md$''',
+  '''(^|/)\.agents/skills/[^/]+/SKILL\.md$''',
+]

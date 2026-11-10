@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Remind about tenant-scoping invariants when touching persistence or handler code.
+# Hook input arrives on stdin as JSON; extract TargetFile or file_path from it.
+FILE=$(python3 -c 'import json,sys
+try:
+    data = json.load(sys.stdin)
+    args = data.get("toolCall", {}).get("args", {})
+    target = args.get("TargetFile") or args.get("file_path") or data.get("tool_input", {}).get("file_path", "")
+    print(target or "")
+except Exception:
+    print("")')
+
+case "$FILE" in
+  *internal/infrastructure/persistence/*_repo.go)
+    printf '{"decision":"allow","reason":"Reminder: every query/mutation in a persistence repo must scope by tenant_id pulled from context (ctx.TenantIDFromContext) — never accept or trust a tenant ID passed in as a parameter."}\n'
+    ;;
+  *internal/delivery/http/handlers/*_handler.go)
+    printf '{"decision":"allow","reason":"Reminder: handlers must not call GORM/repositories directly — go through a usecase. Admin-only routes need an explicit role check in addition to tenant-scoping middleware; tenant scoping alone is not authorization."}\n'
+    ;;
+  *)
+    printf '{"decision":"allow"}\n'
+    ;;
+esac

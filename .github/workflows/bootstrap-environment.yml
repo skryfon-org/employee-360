@@ -1,0 +1,57 @@
+name: Bootstrap Environment
+
+# One-time: creates the system tenant, roles and platform super admin
+# (cmd/bootstrap). Run after the first successful deploy of the environment.
+# Needs the environment secret BOOTSTRAP_SUPER_ADMIN_PASSWORD.
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options: [staging, production]
+      admin_email:
+        description: "Super-admin email address to bootstrap"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    name: Bootstrap ${{ github.event.inputs.environment }}
+    if: github.repository == 'skryfon-org/employee-360'
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Bootstrap via SSH
+        uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
+        env:
+          ADMIN_EMAIL: ${{ github.event.inputs.admin_email }}
+          ADMIN_PASSWORD: ${{ secrets.BOOTSTRAP_SUPER_ADMIN_PASSWORD }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: deploy
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 10m
+          envs: ADMIN_EMAIL,ADMIN_PASSWORD
+          script: |
+            set -euo pipefail
+            [[ -n "${ADMIN_PASSWORD}" ]] || { echo "ERROR: BOOTSTRAP_SUPER_ADMIN_PASSWORD secret is empty" >&2; exit 1; }
+
+            echo "==> Bootstrapping super-admin: ${ADMIN_EMAIL}"
+            # Pass credentials via a 0600 temp env-file, not `-e`, so the password
+            # never appears in the host process list.
+            BOOTSTRAP_ENV="$(mktemp)"
+            trap 'rm -f "${BOOTSTRAP_ENV}"' EXIT
+            chmod 600 "${BOOTSTRAP_ENV}"
+            printf 'BOOTSTRAP_SUPER_ADMIN_EMAIL=%s\nBOOTSTRAP_SUPER_ADMIN_PASSWORD=%s\n' \
+              "${ADMIN_EMAIL}" "${ADMIN_PASSWORD}" > "${BOOTSTRAP_ENV}"
+            podman run --rm --network employee360 \
+              --env-file /home/deploy/.config/employee360/api.env \
+              --env-file "${BOOTSTRAP_ENV}" \
+              --entrypoint /usr/local/bin/bootstrap \
+              localhost/employee360-api:current
+            echo "Bootstrap complete"

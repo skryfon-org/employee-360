@@ -1,0 +1,134 @@
+name: Release Images
+
+# The trigger picks the environment: a push to main releases staging, a v* tag push
+# releases production (plus versioned images for self-hosters). A manual run only
+# re-runs staging. Unlike Backend/Frontend CI (PR-only), this workflow verifies the
+# pushed commit itself, so a broken merge never produces a release.
+# Every job is guarded to this repository, so forks with Actions enabled skip it.
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: ${{ github.repository_owner }}
+  DEPLOY_ENV: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && 'production' || 'staging' }}
+
+jobs:
+  verify-backend:
+    name: Verify backend
+    if: github.repository == 'skryfon-org/employee-360'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+      - run: make build-backend
+      - run: make vet
+      - run: make test-backend
+
+  verify-clients:
+    name: Verify clients
+    if: github.repository == 'skryfon-org/employee-360'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r typecheck
+      - run: pnpm -r test
+
+  release:
+    name: Build & push ${{ matrix.app }}
+    if: github.repository == 'skryfon-org/employee-360'
+    runs-on: ubuntu-latest
+    needs: [verify-backend, verify-clients]
+    environment: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && 'production' || 'staging' }}
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        app: [api, admin, employee]
+    steps:
+      - uses: actions/checkout@v4
+
+      # Vite inlines these at build time; fail early on a missing protocol.
+      - name: Validate SPA build variables
+        if: matrix.app != 'api'
+        run: |
+          if [[ ! "${{ vars.API_URL }}" =~ ^https?:// ]]; then
+            echo "ERROR: vars.API_URL='${{ vars.API_URL }}' must include http(s):// (set it on the ${DEPLOY_ENV} environment)." >&2
+            exit 1
+          fi
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push API
+        if: matrix.app == 'api'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/Containerfile.api
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/employee360-api:${{ env.DEPLOY_ENV }}-${{ github.sha }}
+            ${{ github.ref_type == 'tag' && format('{0}/{1}/employee360-api:{2}', env.REGISTRY, env.OWNER, github.ref_name) || '' }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+      - name: Build and push ${{ matrix.app }} SPA
+        if: matrix.app != 'api'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/Containerfile.web
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/employee360-${{ matrix.app }}:${{ env.DEPLOY_ENV }}-${{ github.sha }}
+            ${{ github.ref_type == 'tag' && format('{0}/{1}/employee360-{2}:{3}', env.REGISTRY, env.OWNER, matrix.app, github.ref_name) || '' }}
+          build-args: |
+            APP=${{ matrix.app }}
+            VITE_API_BASE_URL=${{ vars.API_URL }}
+            VITE_EMPLOYEE_APP_URL=${{ vars.EMPLOYEE_APP_URL }}
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+
+  dispatch-deploy:
+    name: Trigger ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && 'production' || 'staging' }} deploy
+    if: github.repository == 'skryfon-org/employee-360'
+    runs-on: ubuntu-latest
+    needs: [release]
+    permissions:
+      actions: write
+    steps:
+      - name: Dispatch Deploy
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run deploy.yml \
+            --repo "${{ github.repository }}" \
+            --ref "${{ github.ref_name }}" \
+            -f environment="${DEPLOY_ENV}" \
+            -f sha="${{ github.sha }}"

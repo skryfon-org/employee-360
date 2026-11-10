@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Employee360 Backend Architecture</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js" integrity="sha384-en/ztfPSRkGfME4KIm05joYXynqzUgbsG5nMrj/xEFAHXkeZfO3yMK8QQ+mP7p1/" crossorigin="anonymous"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'JetBrains Mono', monospace; background: #020617; min-height: 100vh; padding: 2rem; color: white; }
+    .container { max-width: 1300px; margin: 0 auto; }
+    .header { margin-bottom: 2rem; }
+    .header-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; }
+    .pulse-dot { width: 12px; height: 12px; background: #34d399; border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.025em; }
+    .subtitle { color: #94a3b8; font-size: 0.875rem; margin-left: 1.75rem; }
+    .diagram-container { background: rgba(15, 23, 42, 0.5); border-radius: 1rem; border: 1px solid #1e293b; padding: 1.5rem; overflow-x: auto; }
+    svg { width: 100%; min-width: 1100px; display: block; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-top: 2rem; }
+    .card { background: rgba(15, 23, 42, 0.5); border-radius: 0.75rem; border: 1px solid #1e293b; padding: 1.25rem; }
+    .card-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .card-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .card-dot.cyan { background: #22d3ee; }
+    .card-dot.emerald { background: #34d399; }
+    .card-dot.violet { background: #a78bfa; }
+    .card-dot.amber { background: #fbbf24; }
+    .card-dot.rose { background: #fb7185; }
+    .card h3 { font-size: 0.875rem; font-weight: 600; }
+    .card ul { list-style: none; color: #94a3b8; font-size: 0.75rem; }
+    .card li { margin-bottom: 0.375rem; }
+    .footer { text-align: center; margin-top: 1.5rem; color: #475569; font-size: 0.75rem; }
+    .toolbar { display: flex; gap: 0.5rem; margin-left: auto; flex-shrink: 0; align-items: center; }
+    .toolbar-toggle { background: transparent; border: none; color: #475569; cursor: pointer; font-size: 1.25rem; line-height: 1; padding: 0.25rem 0.5rem; border-radius: 0.375rem; transition: color 0.2s, background 0.2s; }
+    .toolbar-toggle:hover { color: #94a3b8; background: rgba(30, 41, 59, 0.5); }
+    .toolbar-actions { display: none; gap: 0.5rem; }
+    .toolbar.expanded .toolbar-actions { display: flex; }
+    .toolbar-actions button { background: rgba(30, 41, 59, 0.8); border: 1px solid #334155; color: #94a3b8; padding: 0.375rem 0.75rem; border-radius: 0.375rem; font-family: inherit; font-size: 0.75rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+    .toolbar-actions button:hover { background: rgba(51, 65, 85, 0.8); color: white; border-color: #475569; }
+    @media print { body { background: #020617; padding: 1rem; } .toolbar { display: none !important; } }
+  </style>
+</head>
+<body>
+  <div class="container" id="report-container">
+    <div class="header">
+      <div class="header-row">
+        <div class="pulse-dot"></div>
+        <h1>Employee360 Backend Architecture</h1>
+        <div class="toolbar">
+          <div class="toolbar-actions">
+            <button onclick="copyAsImage(this)">📋 Copy</button>
+            <button onclick="downloadPNG(this)">🖼️ PNG</button>
+            <button onclick="downloadPDF(this)">📄 PDF</button>
+          </div>
+          <button class="toolbar-toggle" onclick="this.parentElement.classList.toggle('expanded')" title="Export options" aria-label="Export options">⋯</button>
+        </div>
+      </div>
+      <p class="subtitle">Clean Architecture (Hexagonal / Ports &amp; Adapters) — layer boundaries, request flow &amp; multi-tenant isolation, from plan/architecture/backend.md</p>
+    </div>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 1200 1370">
+        <defs>
+          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+          </marker>
+          <marker id="arrowhead-violet" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#a78bfa" />
+          </marker>
+          <marker id="arrowhead-rose" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#fb7185" />
+          </marker>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+
+        <rect width="100%" height="100%" fill="url(#grid)" />
+
+        <!-- ============ ENTRY POINTS (cmd/) ============ -->
+        <rect x="60" y="40" width="140" height="60" rx="6" fill="rgba(30,41,59,0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="130" y="63" fill="white" font-size="11" font-weight="600" text-anchor="middle">cmd/api</text>
+        <text x="130" y="78" fill="#94a3b8" font-size="8" text-anchor="middle">HTTP server entrypoint</text>
+
+        <rect x="230" y="40" width="140" height="60" rx="6" fill="rgba(30,41,59,0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="300" y="63" fill="white" font-size="11" font-weight="600" text-anchor="middle">cmd/migrate</text>
+        <text x="300" y="78" fill="#94a3b8" font-size="8" text-anchor="middle">golang-migrate CLI</text>
+
+        <rect x="400" y="40" width="140" height="60" rx="6" fill="rgba(30,41,59,0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="470" y="63" fill="white" font-size="11" font-weight="600" text-anchor="middle">cmd/bootstrap</text>
+        <text x="470" y="78" fill="#94a3b8" font-size="8" text-anchor="middle">Seeder / init CLI</text>
+
+        <!-- ============ LAYER CONTAINERS (drawn before spine so spine renders on top) ============ -->
+        <rect x="60" y="160" width="840" height="190" rx="10" fill="rgba(8,51,68,0.10)" stroke="#22d3ee" stroke-width="1.2" stroke-dasharray="7,4"/>
+        <text x="75" y="180" fill="#22d3ee" font-size="11" font-weight="700">DELIVERY LAYER</text>
+        <text x="75" y="193" fill="#94a3b8" font-size="8">internal/delivery/http — Gin handlers, routing, middleware, response envelope</text>
+
+        <rect x="60" y="390" width="840" height="220" rx="10" fill="rgba(6,78,59,0.08)" stroke="#34d399" stroke-width="1.2" stroke-dasharray="7,4"/>
+        <text x="75" y="410" fill="#34d399" font-size="11" font-weight="700">USECASE LAYER</text>
+        <text x="75" y="423" fill="#94a3b8" font-size="8">internal/usecase — interface/ (ports) + implementation/ (adapters), transport-agnostic</text>
+
+        <rect x="60" y="650" width="840" height="210" rx="10" fill="rgba(76,29,149,0.14)" stroke="#a78bfa" stroke-width="2"/>
+        <text x="75" y="670" fill="#a78bfa" font-size="11" font-weight="700">DOMAIN LAYER — CORE</text>
+        <text x="75" y="683" fill="#94a3b8" font-size="8">internal/domain — pure Go entities &amp; interfaces, zero external dependencies</text>
+
+        <rect x="60" y="900" width="840" height="210" rx="10" fill="rgba(120,53,15,0.08)" stroke="#fbbf24" stroke-width="1.2" stroke-dasharray="7,4"/>
+        <text x="75" y="920" fill="#fbbf24" font-size="11" font-weight="700">INFRASTRUCTURE LAYER</text>
+        <text x="75" y="933" fill="#94a3b8" font-size="8">internal/infrastructure — GORM, JWT/bcrypt/mail, DI container, server lifecycle</text>
+
+        <!-- ============ MAIN CONTROL-FLOW SPINE ============ -->
+        <line x1="130" y1="100" x2="130" y2="1148" stroke="#64748b" stroke-width="1.5" stroke-dasharray="1,0"/>
+        <polygon points="130,158 125,148 135,148" fill="#64748b"/>
+        <polygon points="130,388 125,378 135,378" fill="#64748b"/>
+        <polygon points="130,648 125,638 135,638" fill="#64748b"/>
+        <polygon points="130,898 125,888 135,888" fill="#64748b"/>
+        <polygon points="130,1148 125,1138 135,1138" fill="#64748b"/>
+
+        <text x="150" y="122" fill="#94a3b8" font-size="8.5">HTTP request enters Gin router</text>
+        <text x="150" y="372" fill="#94a3b8" font-size="8.5">Middleware chain runs, handler binds/validates, calls usecase</text>
+        <text x="150" y="632" fill="#94a3b8" font-size="8.5">Usecase calls a domain repository interface (port)</text>
+        <text x="150" y="882" fill="#94a3b8" font-size="8.5">Port implemented by an infrastructure adapter (dependency inversion)</text>
+        <text x="150" y="1132" fill="#94a3b8" font-size="8.5">GORM executes SQL, always scoped by tenant_id from ctx</text>
+
+        <!-- cmd/api -> Delivery -->
+        <line x1="130" y1="100" x2="130" y2="158" stroke="#94a3b8" stroke-width="1.5"/>
+        <!-- cmd/migrate & cmd/bootstrap -> Infrastructure (bypass HTTP layers) -->
+        <path d="M 300 100 L 300 130 Q 300 150 320 150 L 600 150 Q 620 150 620 170 L 620 898" fill="none" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="5,4"/>
+        <path d="M 470 100 L 470 140 Q 470 160 490 160 L 780 160 Q 800 160 800 180 L 800 898" fill="none" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="5,4"/>
+        <text x="470" y="115" fill="#94a3b8" font-size="7.5" text-anchor="middle">direct DB access — bypasses Delivery/Usecase/Domain</text>
+
+        <!-- ============ DELIVERY LAYER CONTENTS ============ -->
+        <rect x="170" y="200" width="330" height="130" rx="8" fill="transparent" stroke="#fb7185" stroke-width="1" stroke-dasharray="4,4"/>
+        <text x="184" y="214" fill="#fb7185" font-size="8" font-weight="600">middleware/ chain (ordered)</text>
+
+        <rect x="180" y="222" width="100" height="26" rx="5" fill="rgba(136,19,55,0.3)" stroke="#fb7185" stroke-width="1"/>
+        <text x="230" y="239" fill="white" font-size="7.5" text-anchor="middle">request_id.go</text>
+        <rect x="285" y="222" width="100" height="26" rx="5" fill="rgba(136,19,55,0.3)" stroke="#fb7185" stroke-width="1"/>
+        <text x="335" y="239" fill="white" font-size="7.5" text-anchor="middle">logger.go</text>
+        <rect x="390" y="222" width="100" height="26" rx="5" fill="rgba(136,19,55,0.3)" stroke="#fb7185" stroke-width="1"/>
+        <text x="440" y="239" fill="white" font-size="7.5" text-anchor="middle">cors.go</text>
+
+        <rect x="180" y="256" width="100" height="26" rx="5" fill="rgba(136,19,55,0.3)" stroke="#fb7185" stroke-width="1"/>
+        <text x="230" y="273" fill="white" font-size="7.5" text-anchor="middle">recovery.go</text>
+        <rect x="285" y="256" width="100" height="26" rx="5" fill="rgba(136,19,55,0.3)" stroke="#fb7185" stroke-width="1"/>
+        <text x="335" y="273" fill="white" font-size="7.5" text-anchor="middle">auth.go (JWT)</text>
+        <rect x="390" y="256" width="100" height="26" rx="5" fill="rgba(136,19,55,0.3)" stroke="#fb7185" stroke-width="1"/>
+        <text x="440" y="269" fill="white" font-size="7" text-anchor="middle">tenant.go</text>
+        <text x="440" y="278" fill="white" font-size="7" text-anchor="middle">(resolves tenant_id)</text>
+
+        <rect x="520" y="200" width="170" height="130" rx="8" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="605" y="214" fill="white" font-size="9" font-weight="600" text-anchor="middle">handlers/</text>
+        <text x="530" y="228" fill="#94a3b8" font-size="7">• auth_handler</text>
+        <text x="530" y="239" fill="#94a3b8" font-size="7">• user_handler</text>
+        <text x="530" y="250" fill="#94a3b8" font-size="7">• role_handler</text>
+        <text x="530" y="261" fill="#94a3b8" font-size="7">• department_handler</text>
+        <text x="530" y="272" fill="#94a3b8" font-size="7">• position_handler</text>
+        <text x="610" y="228" fill="#94a3b8" font-size="7">• holiday_handler</text>
+        <text x="610" y="239" fill="#94a3b8" font-size="7">• category_handler</text>
+        <text x="610" y="250" fill="#94a3b8" font-size="7">• audit_handler</text>
+        <text x="610" y="261" fill="#94a3b8" font-size="7">• tenant_handler</text>
+        <text x="605" y="316" fill="#34d399" font-size="7" text-anchor="middle">never call GORM directly</text>
+
+        <rect x="710" y="200" width="170" height="130" rx="8" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="795" y="214" fill="white" font-size="9" font-weight="600" text-anchor="middle">routing &amp; response</text>
+        <text x="720" y="232" fill="#94a3b8" font-size="7">• routes.go</text>
+        <text x="726" y="243" fill="#94a3b8" font-size="7">route group definitions</text>
+        <text x="720" y="258" fill="#94a3b8" font-size="7">• routes_test.go</text>
+        <text x="726" y="269" fill="#94a3b8" font-size="7">HTTP integration tests</text>
+        <text x="720" y="284" fill="#94a3b8" font-size="7">• response/response.go</text>
+        <text x="726" y="295" fill="#94a3b8" font-size="7">standardized JSON envelope</text>
+
+        <!-- ============ USECASE LAYER CONTENTS ============ -->
+        <text x="184" y="440" fill="#34d399" font-size="8" font-weight="600">interface/ — one file per feature, one Execute() method per usecase (ports)</text>
+        <rect x="170" y="448" width="230" height="24" rx="5" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1"/>
+        <text x="285" y="464" fill="white" font-size="7.5" text-anchor="middle">auth/ · user/ · rbac/</text>
+        <rect x="415" y="448" width="230" height="24" rx="5" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1"/>
+        <text x="530" y="464" fill="white" font-size="7.5" text-anchor="middle">department/ · position/ · holiday/</text>
+        <rect x="660" y="448" width="230" height="24" rx="5" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1"/>
+        <text x="775" y="464" fill="white" font-size="7.5" text-anchor="middle">category/ · tenant/ · audit/</text>
+
+        <line x1="530" y1="472" x2="530" y2="486" stroke="#34d399" stroke-width="1.3" marker-end="url(#arrowhead)"/>
+        <text x="545" y="482" fill="#34d399" font-size="7">implemented by</text>
+
+        <text x="184" y="500" fill="#34d399" font-size="8" font-weight="600">implementation/ — one file per operation (adapters), e.g. create_user.go → CreateUserUseCaseImpl</text>
+        <rect x="170" y="508" width="230" height="24" rx="5" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1"/>
+        <text x="285" y="524" fill="white" font-size="7.5" text-anchor="middle">login.go · create_user.go · assign_role.go</text>
+        <rect x="415" y="508" width="230" height="24" rx="5" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1"/>
+        <text x="530" y="524" fill="white" font-size="7.5" text-anchor="middle">create_department.go · create_position.go · create_holiday.go</text>
+        <rect x="660" y="508" width="230" height="24" rx="5" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1"/>
+        <text x="775" y="524" fill="white" font-size="7.5" text-anchor="middle">create_category.go · get_tenant.go · log_action.go</text>
+
+        <text x="184" y="546" fill="#94a3b8" font-size="7">ucshared/ — shared usecase helpers (e.g. Transactor)</text>
+        <text x="530" y="546" fill="#94a3b8" font-size="7" text-anchor="middle">Delivery depends only on interface/ — container.go wires implementation/ at boot</text>
+        <text x="530" y="560" fill="#94a3b8" font-size="7.5" text-anchor="middle">coordinates domain entities + repositories · knows nothing about HTTP or JSON</text>
+
+        <!-- ============ DOMAIN LAYER CONTENTS ============ -->
+        <rect x="170" y="698" width="168" height="150" rx="6" fill="#0f172a"/>
+        <rect x="170" y="698" width="168" height="150" rx="6" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="254" y="713" fill="white" font-size="8.5" font-weight="600" text-anchor="middle">entity/</text>
+        <text x="180" y="727" fill="#e9d5ff" font-size="7">Tenant · User · Role</text>
+        <text x="180" y="738" fill="#e9d5ff" font-size="7">UserRole · Department</text>
+        <text x="180" y="749" fill="#e9d5ff" font-size="7">Position · Holiday</text>
+        <text x="180" y="760" fill="#e9d5ff" font-size="7">HolidayCategory</text>
+        <text x="180" y="771" fill="#e9d5ff" font-size="7">AuditLog</text>
+        <text x="180" y="788" fill="#94a3b8" font-size="7">errors/ — sentinel errs</text>
+        <text x="180" y="799" fill="#94a3b8" font-size="7">event/ — domain events</text>
+        <text x="180" y="810" fill="#94a3b8" font-size="7">ctx/ — TenantID, UserID,</text>
+        <text x="180" y="821" fill="#94a3b8" font-size="7">Roles context extractors</text>
+
+        <rect x="353" y="698" width="168" height="150" rx="6" fill="#0f172a"/>
+        <rect x="353" y="698" width="168" height="150" rx="6" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="437" y="713" fill="white" font-size="8.5" font-weight="600" text-anchor="middle">repository/ (ports)</text>
+        <text x="363" y="727" fill="#e9d5ff" font-size="7">TenantRepository</text>
+        <text x="363" y="738" fill="#e9d5ff" font-size="7">UserRepository</text>
+        <text x="363" y="749" fill="#e9d5ff" font-size="7">RoleRepository</text>
+        <text x="363" y="760" fill="#e9d5ff" font-size="7">UserRoleRepository</text>
+        <text x="363" y="771" fill="#e9d5ff" font-size="7">DepartmentRepository</text>
+        <text x="363" y="782" fill="#e9d5ff" font-size="7">PositionRepository</text>
+        <text x="363" y="793" fill="#e9d5ff" font-size="7">HolidayRepository</text>
+        <text x="363" y="804" fill="#e9d5ff" font-size="7">CategoryRepository</text>
+        <text x="363" y="815" fill="#e9d5ff" font-size="7">AuditRepository</text>
+        <text x="437" y="830" fill="#a78bfa" font-size="6.5" text-anchor="middle" font-weight="600">defined here, implemented by infra ▼</text>
+
+        <rect x="536" y="698" width="168" height="150" rx="6" fill="#0f172a"/>
+        <rect x="536" y="698" width="168" height="150" rx="6" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="620" y="713" fill="white" font-size="8.5" font-weight="600" text-anchor="middle">service/ (ports)</text>
+        <text x="546" y="732" fill="#e9d5ff" font-size="7.5">TokenService</text>
+        <text x="546" y="746" fill="#94a3b8" font-size="6.5">JWT issue / validate</text>
+        <text x="546" y="764" fill="#e9d5ff" font-size="7.5">HashService</text>
+        <text x="546" y="778" fill="#94a3b8" font-size="6.5">password hashing</text>
+
+        <rect x="719" y="698" width="168" height="150" rx="6" fill="#0f172a"/>
+        <rect x="719" y="698" width="168" height="150" rx="6" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="803" y="713" fill="white" font-size="8.5" font-weight="600" text-anchor="middle">entities are pure Go</text>
+        <text x="729" y="732" fill="#94a3b8" font-size="7">No Gin.</text>
+        <text x="729" y="746" fill="#94a3b8" font-size="7">No GORM.</text>
+        <text x="729" y="760" fill="#94a3b8" font-size="7">No DB driver.</text>
+        <text x="729" y="778" fill="#94a3b8" font-size="7">Dependencies always</text>
+        <text x="729" y="789" fill="#94a3b8" font-size="7">point INWARD, toward</text>
+        <text x="729" y="800" fill="#94a3b8" font-size="7">this layer.</text>
+
+        <!-- ============ INFRASTRUCTURE LAYER CONTENTS ============ -->
+        <rect x="170" y="948" width="168" height="150" rx="6" fill="#0f172a"/>
+        <rect x="170" y="948" width="168" height="150" rx="6" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="254" y="963" fill="white" font-size="8.5" font-weight="600" text-anchor="middle">persistence/ (GORM)</text>
+        <text x="180" y="977" fill="#e9d5ff" font-size="7">tenant_repo.go</text>
+        <text x="180" y="988" fill="#e9d5ff" font-size="7">user_repo.go</text>
+        <text x="180" y="999" fill="#e9d5ff" font-size="7">role_repo.go</text>
+        <text x="180" y="1010" fill="#e9d5ff" font-size="7">user_role_repo.go</text>
+        <text x="180" y="1021" fill="#e9d5ff" font-size="7">department_repo.go</text>
+        <text x="180" y="1032" fill="#e9d5ff" font-size="7">position_repo.go</text>
+        <text x="180" y="1043" fill="#e9d5ff" font-size="7">holiday_repo.go</text>
+        <text x="180" y="1054" fill="#e9d5ff" font-size="7">category_repo.go</text>
+        <text x="180" y="1065" fill="#e9d5ff" font-size="7">audit_repo.go</text>
+        <text x="254" y="1083" fill="#a78bfa" font-size="6.5" text-anchor="middle" font-weight="600">▲ implements domain ports</text>
+
+        <rect x="353" y="948" width="168" height="150" rx="6" fill="#0f172a"/>
+        <rect x="353" y="948" width="168" height="150" rx="6" fill="rgba(136,19,55,0.35)" stroke="#fb7185" stroke-width="1.5"/>
+        <text x="437" y="963" fill="white" font-size="8.5" font-weight="600" text-anchor="middle">service/ (adapters)</text>
+        <text x="363" y="980" fill="#fecdd3" font-size="7.5">jwt_service.go</text>
+        <text x="363" y="991" fill="#94a3b8" font-size="6.5">JWT generation &amp; validation</text>
+        <text x="363" y="1008" fill="#fecdd3" font-size="7.5">bcrypt_service.go</text>
+        <text x="363" y="1019" fill="#94a3b8" font-size="6.5">password hash &amp; compare</text>
+        <text x="363" y="1036" fill="#fecdd3" font-size="7.5">mail_service.go</text>
+        <text x="363" y="1047" fill="#94a3b8" font-size="6.5">OTP / magic-link email</text>
+
+        <rect x="536" y="948" width="168" height="150" rx="6" fill="rgba(120,53,15,0.35)" stroke="#fbbf24" stroke-width="1.5"/>
+        <text x="620" y="963" fill="white" font-size="8.5" font-weight="600" text-anchor="middle">container/</text>
+        <text x="546" y="982" fill="#fde68a" font-size="7.5">container.go</text>
+        <text x="546" y="996" fill="#94a3b8" font-size="7">Wires domain ports →</text>
+        <text x="546" y="1007" fill="#94a3b8" font-size="7">usecase/implementation →</text>
+        <text x="546" y="1018" fill="#94a3b8" font-size="7">handlers → infra adapters,</text>
+        <text x="546" y="1029" fill="#94a3b8" font-size="7">from cmd/api/main.go</text>
+
+        <rect x="719" y="948" width="168" height="150" rx="6" fill="rgba(120,53,15,0.35)" stroke="#fbbf24" stroke-width="1.5"/>
+        <text x="803" y="963" fill="white" font-size="8.5" font-weight="600" text-anchor="middle">server/ &amp; database/</text>
+        <text x="729" y="980" fill="#fde68a" font-size="7.5">server.go</text>
+        <text x="729" y="991" fill="#94a3b8" font-size="6.5">HTTP lifecycle, graceful shutdown</text>
+        <text x="729" y="1006" fill="#fde68a" font-size="7.5">database/postgres.go</text>
+        <text x="729" y="1017" fill="#94a3b8" font-size="6.5">connection pool + GORM instance</text>
+        <text x="729" y="1032" fill="#fde68a" font-size="7.5">database/seeder/</text>
+        <text x="729" y="1043" fill="#94a3b8" font-size="6.5">Super Admin + default roles</text>
+
+        <!-- DIP dashed arrow: persistence implements domain repository ports -->
+        <path d="M 254 948 C 254 900, 350 870, 437 848" fill="none" stroke="#a78bfa" stroke-width="1.3" stroke-dasharray="5,4" marker-end="url(#arrowhead-violet)"/>
+
+        <!-- ============ DATABASE ============ -->
+        <line x1="254" y1="1098" x2="480" y2="1150" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrowhead-violet)"/>
+        <text x="330" y="1120" fill="#a78bfa" font-size="7.5">tenant_id-scoped SQL</text>
+
+        <rect x="380" y="1150" width="280" height="70" rx="8" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="520" y="1173" fill="white" font-size="12" font-weight="700" text-anchor="middle">PostgreSQL</text>
+        <text x="520" y="1189" fill="#94a3b8" font-size="8" text-anchor="middle">Shared database, shared schema</text>
+        <text x="520" y="1202" fill="#94a3b8" font-size="8" text-anchor="middle">Row-level tenant_id isolation on every table</text>
+        <text x="520" y="1214" fill="#94a3b8" font-size="7" text-anchor="middle">migrations/ · golang-migrate · 000001–000009</text>
+
+        <!-- ============ RIGHT COLUMN CALLOUTS ============ -->
+        <rect x="940" y="160" width="220" height="180" rx="10" fill="rgba(136,19,55,0.15)" stroke="#fb7185" stroke-width="1.2" stroke-dasharray="4,4"/>
+        <text x="955" y="180" fill="#fb7185" font-size="10" font-weight="700">Multi-Tenancy Strategy</text>
+        <text x="955" y="198" fill="#e2e8f0" font-size="7.5">• Shared DB, shared schema</text>
+        <text x="955" y="212" fill="#e2e8f0" font-size="7.5">• tenant_id column on every</text>
+        <text x="955" y="223" fill="#e2e8f0" font-size="7.5">  table except tenants</text>
+        <text x="955" y="238" fill="#e2e8f0" font-size="7.5">• Resolved server-side by</text>
+        <text x="955" y="249" fill="#e2e8f0" font-size="7.5">  tenant.go middleware → ctx</text>
+        <text x="955" y="264" fill="#e2e8f0" font-size="7.5">• Repos scope every query /</text>
+        <text x="955" y="275" fill="#e2e8f0" font-size="7.5">  mutation by ctx tenant_id</text>
+        <text x="955" y="290" fill="#fecdd3" font-size="7.5" font-weight="600">• Client-supplied tenant IDs</text>
+        <text x="955" y="301" fill="#fecdd3" font-size="7.5" font-weight="600">  are never trusted</text>
+        <text x="955" y="318" fill="#e2e8f0" font-size="7.5">• super_admin governs tenants</text>
+        <text x="955" y="329" fill="#e2e8f0" font-size="7.5">  at the platform level</text>
+
+        <rect x="940" y="360" width="220" height="200" rx="10" fill="rgba(120,53,15,0.20)" stroke="#fbbf24" stroke-width="1.2"/>
+        <text x="955" y="380" fill="#fbbf24" font-size="10" font-weight="700">migrations/</text>
+        <text x="955" y="393" fill="#94a3b8" font-size="7">golang-migrate · up/down pairs</text>
+        <text x="955" y="410" fill="#e2e8f0" font-size="7">000001 tenants</text>
+        <text x="955" y="421" fill="#e2e8f0" font-size="7">000002 departments</text>
+        <text x="955" y="432" fill="#e2e8f0" font-size="7">000003 positions</text>
+        <text x="955" y="443" fill="#e2e8f0" font-size="7">000004 users</text>
+        <text x="955" y="454" fill="#e2e8f0" font-size="7">000005 roles</text>
+        <text x="955" y="465" fill="#e2e8f0" font-size="7">000006 user_roles</text>
+        <text x="955" y="476" fill="#e2e8f0" font-size="7">000007 holiday_categories</text>
+        <text x="955" y="487" fill="#e2e8f0" font-size="7">000008 holidays</text>
+        <text x="955" y="498" fill="#e2e8f0" font-size="7">000009 audit_logs</text>
+        <text x="955" y="515" fill="#94a3b8" font-size="6.5">run via: make migrate / migrate-down</text>
+        <text x="955" y="527" fill="#94a3b8" font-size="6.5">cmd/migrate — up/down SQL runner</text>
+        <text x="955" y="543" fill="#94a3b8" font-size="6.5">config/ — Viper (env + YAML)</text>
+
+        <rect x="940" y="650" width="220" height="170" rx="10" fill="rgba(30,41,59,0.4)" stroke="#94a3b8" stroke-width="1.2"/>
+        <text x="955" y="670" fill="#e2e8f0" font-size="10" font-weight="700">pkg/ · shared/ · config/</text>
+        <text x="955" y="688" fill="#94a3b8" font-size="7.5">• pkg/logger — Zerolog wrapper</text>
+        <text x="955" y="703" fill="#94a3b8" font-size="7.5">• pkg/validator — go-playground</text>
+        <text x="955" y="714" fill="#94a3b8" font-size="7.5">  /validator payload rules</text>
+        <text x="955" y="729" fill="#94a3b8" font-size="7.5">• shared/constants.go</text>
+        <text x="955" y="744" fill="#94a3b8" font-size="7.5">• config/config.go (Viper)</text>
+        <text x="955" y="755" fill="#94a3b8" font-size="7.5">  + config.yaml.example</text>
+        <text x="955" y="770" fill="#94a3b8" font-size="7.5">• docker-compose.yml — local</text>
+        <text x="955" y="781" fill="#94a3b8" font-size="7.5">  Postgres + API infra</text>
+        <text x="955" y="796" fill="#94a3b8" font-size="7.5">• Makefile — dev/migrate/</text>
+        <text x="955" y="807" fill="#94a3b8" font-size="7.5">  bootstrap/test targets</text>
+
+        <rect x="940" y="840" width="220" height="180" rx="10" fill="rgba(136,19,55,0.20)" stroke="#fb7185" stroke-width="1.2"/>
+        <text x="955" y="860" fill="#fb7185" font-size="10" font-weight="700">Platform Roles</text>
+        <text x="955" y="878" fill="#e2e8f0" font-size="7.5">super_admin</text>
+        <text x="955" y="889" fill="#94a3b8" font-size="6.5">platform governance: tenants,</text>
+        <text x="955" y="899" fill="#94a3b8" font-size="6.5">health, global config. Seeded</text>
+        <text x="955" y="909" fill="#94a3b8" font-size="6.5">via cmd/bootstrap/main.go</text>
+        <text x="955" y="927" fill="#e2e8f0" font-size="7.5">admin</text>
+        <text x="955" y="938" fill="#94a3b8" font-size="6.5">manages holidays, depts,</text>
+        <text x="955" y="948" fill="#94a3b8" font-size="6.5">positions, users, roles for</text>
+        <text x="955" y="958" fill="#94a3b8" font-size="6.5">their own tenant</text>
+        <text x="955" y="976" fill="#e2e8f0" font-size="7.5">employee</text>
+        <text x="955" y="987" fill="#94a3b8" font-size="6.5">passwordless email login;</text>
+        <text x="955" y="997" fill="#94a3b8" font-size="6.5">views holiday calendar +</text>
+        <text x="955" y="1007" fill="#94a3b8" font-size="6.5">company directory</text>
+
+        <!-- ============ LEGEND ============ -->
+        <text x="60" y="1265" fill="white" font-size="10" font-weight="600">Legend</text>
+
+        <rect x="60" y="1277" width="16" height="10" rx="2" fill="rgba(8,51,68,0.4)" stroke="#22d3ee" stroke-width="1"/>
+        <text x="82" y="1285" fill="#94a3b8" font-size="8">Delivery / HTTP boundary</text>
+
+        <rect x="240" y="1277" width="16" height="10" rx="2" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1"/>
+        <text x="262" y="1285" fill="#94a3b8" font-size="8">Usecase / application logic</text>
+
+        <rect x="440" y="1277" width="16" height="10" rx="2" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1"/>
+        <text x="462" y="1285" fill="#94a3b8" font-size="8">Domain core / data (entities, DB)</text>
+
+        <rect x="680" y="1277" width="16" height="10" rx="2" fill="rgba(120,53,15,0.35)" stroke="#fbbf24" stroke-width="1"/>
+        <text x="702" y="1285" fill="#94a3b8" font-size="8">Infrastructure / framework glue</text>
+
+        <rect x="900" y="1277" width="16" height="10" rx="2" fill="rgba(136,19,55,0.35)" stroke="#fb7185" stroke-width="1"/>
+        <text x="922" y="1285" fill="#94a3b8" font-size="8">Security / auth / tenancy</text>
+
+        <rect x="60" y="1297" width="16" height="10" rx="2" fill="rgba(30,41,59,0.5)" stroke="#94a3b8" stroke-width="1"/>
+        <text x="82" y="1305" fill="#94a3b8" font-size="8">Entry point / cross-cutting util</text>
+
+        <line x1="260" y1="1302" x2="276" y2="1302" stroke="#a78bfa" stroke-width="1.3" stroke-dasharray="4,4"/>
+        <text x="282" y="1305" fill="#94a3b8" font-size="8">Implements (Dependency Inversion)</text>
+
+        <line x1="560" y1="1302" x2="576" y2="1302" stroke="#64748b" stroke-width="1.5"/>
+        <text x="582" y="1305" fill="#94a3b8" font-size="8">Request flow / control</text>
+      </svg>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot emerald"></div>
+          <h3>Clean Architecture Layers</h3>
+        </div>
+        <ul>
+          <li>• Dependencies point strictly inward: Infra → Delivery → Usecase → Domain</li>
+          <li>• Domain has zero dependencies on Gin, GORM, or any driver</li>
+          <li>• Handlers never call GORM or the database directly</li>
+          <li>• Repository interfaces (ports) live in domain, implemented in infrastructure</li>
+          <li>• Usecases split into usecase/interface (ports) and usecase/implementation (adapters), same pattern one level up</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot rose"></div>
+          <h3>Multi-Tenancy &amp; Security</h3>
+        </div>
+        <ul>
+          <li>• Shared DB, shared schema, tenant_id on every table but tenants</li>
+          <li>• tenant.go middleware resolves tenant_id into context.Context</li>
+          <li>• Every repository query/mutation is scoped by ctx tenant_id</li>
+          <li>• JWT (access + refresh) carries tenant_id and role claims</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot amber"></div>
+          <h3>Dev Workflow</h3>
+        </div>
+        <ul>
+          <li>• make dev / make test — run server and test suite</li>
+          <li>• make migrate / migrate-down — golang-migrate up/down</li>
+          <li>• make bootstrap-admin — seed system tenant, roles, Super Admin</li>
+          <li>• container.go wires every layer from cmd/api/main.go</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="footer">
+      Employee360 Backend • Go · Gin · GORM · PostgreSQL · JWT · Viper · Zerolog — generated from plan/architecture/backend.md
+    </p>
+  </div>
+
+  <script>
+    async function copyAsImage(btn) {
+      const orig = btn.textContent;
+      try {
+        const el = document.getElementById('report-container');
+        const r = el.getBoundingClientRect();
+        const pad = 32;
+        const canvas = await html2canvas(document.body, { backgroundColor: '#020617', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        btn.textContent = '✓ Copied!';
+      } catch (e) {
+        btn.textContent = '✗ Failed';
+      }
+      setTimeout(() => btn.textContent = orig, 2000);
+    }
+
+    async function downloadPNG(btn) {
+      const orig = btn.textContent;
+      btn.textContent = '⏳ ...';
+      try {
+        const el = document.getElementById('report-container');
+        const r = el.getBoundingClientRect();
+        const pad = 32;
+        const canvas = await html2canvas(document.body, { backgroundColor: '#020617', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const link = document.createElement('a');
+        link.download = 'employee360-backend-architecture.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        btn.textContent = '✓ Done!';
+      } catch (e) {
+        btn.textContent = '✗ Failed';
+      }
+      setTimeout(() => btn.textContent = orig, 2000);
+    }
+
+    async function downloadPDF(btn) {
+      const orig = btn.textContent;
+      btn.textContent = '⏳ ...';
+      try {
+        const el = document.getElementById('report-container');
+        const r = el.getBoundingClientRect();
+        const pad = 32;
+        const canvas = await html2canvas(document.body, { backgroundColor: '#020617', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const imgData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const orientation = canvas.width > canvas.height ? 'landscape' : 'portrait';
+        const pdf = new jsPDF({ orientation, unit: 'px', format: [canvas.width, canvas.height], hotfixes: ['px_scaling'] });
+        pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+        pdf.save('employee360-backend-architecture.pdf');
+        btn.textContent = '✓ Done!';
+      } catch (e) {
+        btn.textContent = '✗ Failed';
+      }
+      setTimeout(() => btn.textContent = orig, 2000);
+    }
+  </script>
+</body>
+</html>

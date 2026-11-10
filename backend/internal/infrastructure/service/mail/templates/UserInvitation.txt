@@ -1,0 +1,13 @@
+Hello,
+
+You have been invited to join {{if .TenantName}}{{.TenantName}}{{else}}Employee360{{end}}{{if .RoleName}} as {{.RoleName}}{{end}}.
+
+To accept your invitation and set up your account, click the link below or copy and paste it into your browser:
+{{.InviteURL}}
+
+This invitation link will expire on {{if .ExpiresAt}}{{.ExpiresAt}}{{else}}soon{{end}}.
+
+If you were not expecting this invitation, you can safely ignore this email.
+
+Best regards,
+Employee360 Team

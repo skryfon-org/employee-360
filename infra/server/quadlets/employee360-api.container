@@ -1,0 +1,19 @@
+[Unit]
+Description=Employee360 API
+After=network-online.target
+
+[Container]
+ContainerName=employee360-api
+Image=localhost/employee360-api:current
+Pull=never
+Network=employee360.network
+EnvironmentFile=%h/.config/employee360/api.env
+PublishPort=127.0.0.1:8080:8080
+
+[Service]
+Restart=on-failure
+RestartSec=5s
+TimeoutStartSec=120
+
+[Install]
+WantedBy=default.target

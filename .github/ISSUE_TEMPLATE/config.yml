@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/skryfon-org/employee-360/security/advisories/new
+    about: Please report vulnerabilities privately. Don't open a public issue. See SECURITY.md.

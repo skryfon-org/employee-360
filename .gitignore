@@ -1,0 +1,41 @@
+# Binaries and build output
+bin/
+backend/bin/
+dist/
+build/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test and coverage artifacts
+coverage.out
+*.test
+
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+backend/.env
+
+# Dependencies and cache
+node_modules/
+.pnpm-store/
+
+# Editor and OS files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+.npmrc
+
+
+# Local agent hooks compatibility symlink
+.agents/.agents/
+
+# Local deployment secrets notes
+DEPLOYMENT_SECRETS.md

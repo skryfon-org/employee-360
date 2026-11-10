@@ -1,0 +1,18 @@
+packages:
+  - 'clients/*'
+  - 'packages/*'
+allowBuilds:
+  esbuild: true
+minimumReleaseAgeExclude:
+  - eslint-plugin-react-refresh@0.5.7
+  - '@tanstack/query-core@5.103.1'
+  - '@tanstack/react-query@5.103.1'
+  - jsdom@30.1.0
+# Security floors for transitive deps flagged by `pnpm audit` (see .github/workflows/security.yml).
+# Remove an entry once its parent package ships the fix.
+overrides:
+  brace-expansion@>=4.0.0 <5.0.11: ^5.0.11
+  source-map-js@>=1.0.0 <1.2.2: ^1.2.2
+  follow-redirects@>=1.16.0 <1.16.2: ^1.16.2
+  markdown-it@>=14.1.0 <14.3.3: ^14.3.3
+  undici@>=8.0.0 <8.12.2: ^8.12.2

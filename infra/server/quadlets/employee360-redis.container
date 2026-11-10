@@ -1,0 +1,19 @@
+[Unit]
+Description=Employee360 Redis (optional; started only when REDIS_ENABLED=true)
+After=network-online.target
+
+[Container]
+ContainerName=employee360-redis
+Image=docker.io/redis:8-alpine
+Pull=missing
+Network=employee360.network
+EnvironmentFile=%h/.config/employee360/redis.env
+Exec=sh -c 'exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"'
+Volume=employee360-redis-data:/data:U
+
+[Service]
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=default.target

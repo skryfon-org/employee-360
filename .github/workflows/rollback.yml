@@ -1,0 +1,50 @@
+name: Rollback
+
+# Re-points :current at the :previous images kept by the last deploy and restarts
+# the app units. Migrations are NOT reversed.
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to roll back"
+        required: true
+        type: choice
+        options: [production, staging]
+
+permissions:
+  contents: read
+
+jobs:
+  rollback:
+    name: Rollback ${{ github.event.inputs.environment }}
+    if: github.repository == 'skryfon-org/employee-360'
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Roll back via SSH
+        uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: deploy
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -euo pipefail
+            export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+            export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus"
+
+            for n in api admin employee; do
+              podman image exists "localhost/employee360-$n:previous" || { echo "ERROR: no previous image for $n; nothing to roll back to" >&2; exit 1; }
+            done
+
+            echo "==> Rolling back to previous"
+            for n in api admin employee; do
+              podman tag "localhost/employee360-$n:previous" "localhost/employee360-$n:current"
+            done
+            systemctl --user restart employee360-api employee360-worker employee360-admin employee360-employee
+
+            for url in http://127.0.0.1:8080/health http://127.0.0.1:3003/healthz http://127.0.0.1:3004/healthz; do
+              for i in $(seq 1 12); do curl -fsS --max-time 5 "$url" >/dev/null 2>&1 && break; sleep 5; done
+              curl -fsS --max-time 5 "$url" >/dev/null || { echo "FAIL $url" >&2; exit 1; }
+            done
+            echo "==> Rollback complete"

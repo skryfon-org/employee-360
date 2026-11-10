@@ -1,0 +1,20 @@
+[Unit]
+Description=Employee360 Worker (River email outbox)
+After=network-online.target
+
+[Container]
+ContainerName=employee360-worker
+Image=localhost/employee360-api:current
+Pull=never
+Network=employee360.network
+# Entrypoint (not Exec): Exec= would be passed as args to the image's api entrypoint.
+Entrypoint=/usr/local/bin/worker
+EnvironmentFile=%h/.config/employee360/api.env
+
+[Service]
+Restart=on-failure
+RestartSec=5s
+TimeoutStartSec=120
+
+[Install]
+WantedBy=default.target

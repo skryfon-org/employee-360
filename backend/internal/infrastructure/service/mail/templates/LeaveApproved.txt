@@ -1,0 +1,16 @@
+{{if .EmployeeName}}Hi {{.EmployeeName}},
+
+{{end}}{{.ApproverName}} has approved your leave request.
+
+Leave type: {{.LeaveType}}
+From: {{.StartDate}}
+To: {{.EndDate}}
+Duration: {{.Duration}}
+Decided by: {{.ApproverName}}
+{{if .Comment}}Comment: {{.Comment}}
+{{end}}
+View your leave here:
+{{.LeaveURL}}
+
+Best regards,
+Employee360 Team
