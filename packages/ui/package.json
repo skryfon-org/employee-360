@@ -39,7 +39,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "axios-mock-adapter": "^2.1.0",
     "jsdom": "^30.1.0",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "vitest": "^5.0.1"
   }
 }
