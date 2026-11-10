@@ -2,7 +2,7 @@
 # Build context: repo root. Produces one image holding the api, worker, migrate
 # and bootstrap binaries plus the SQL migrations; the quadlets pick the binary
 # via Entrypoint=.
-FROM docker.io/library/golang:1.26-bookworm AS builder
+FROM docker.io/library/golang:1.27-bookworm AS builder
 
 WORKDIR /build
 
