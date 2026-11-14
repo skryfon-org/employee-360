@@ -39,7 +39,7 @@ jobs:
       SHA: ${{ github.event.inputs.sha }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.inputs.sha }}
 
