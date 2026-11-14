@@ -87,7 +87,7 @@ jobs:
 
       - name: Build and push API
         if: matrix.app == 'api'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: infra/Containerfile.api
@@ -100,7 +100,7 @@ jobs:
 
       - name: Build and push ${{ matrix.app }} SPA
         if: matrix.app != 'api'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: infra/Containerfile.web
