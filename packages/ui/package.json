@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@employee360/api-client": "workspace:*",
-    "@fullcalendar/core": "^6.1.21",
+    "@fullcalendar/core": "^7.1.4",
     "@fullcalendar/daygrid": "^6.1.22",
     "@fullcalendar/interaction": "^6.1.22",
     "@fullcalendar/react": "^6.1.21",
