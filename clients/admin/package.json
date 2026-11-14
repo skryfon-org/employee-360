@@ -15,7 +15,7 @@
   "dependencies": {
     "@employee360/api-client": "workspace:*",
     "@employee360/ui": "workspace:*",
-    "@hookform/resolvers": "^5.9.1",
+    "@hookform/resolvers": "^7.0.5",
     "@tanstack/react-query": "^5.107.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
