@@ -14,7 +14,7 @@ jobs:
     name: Build, Vet, Fmt, Structure
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v7
         with:
@@ -39,7 +39,7 @@ jobs:
     name: Go Unit Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v7
         with:
@@ -89,7 +89,7 @@ jobs:
       REDIS_HOST: localhost
       REDIS_PORT: 6379
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v7
         with:
@@ -132,7 +132,7 @@ jobs:
       DATABASE_NAME: employee360
       DATABASE_SSLMODE: disable
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v7
         with:
